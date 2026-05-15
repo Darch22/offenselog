@@ -45,3 +45,16 @@ export async function addViolation(
     
     return true;
 }
+
+export async function getViolations(
+    userId: string,
+    subredditId: string
+) : Promise<Violation[]> {
+
+    const key = violationKey(subredditId, userId);
+
+    const entries = await redis.zRange(key, 0, -1);
+    const violations: Violation[] = entries.map((entry) => JSON.parse(entry.member) as Violation)
+    
+    return violations;
+}
