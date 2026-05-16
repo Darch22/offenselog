@@ -54,5 +54,44 @@
   },
   "dev": {
     "subreddit": "offenselog_dev"
+  },
+  "settings": {
+    "subreddit": {
+      "tier1Threshold": {
+        "type": "number",
+        "label": "Tier 1 threshold (warning)",
+        "defaultValue": 3
+      },
+      "tier2Threshold": {
+        "type": "number",
+        "label": "Tier 2 threshold (temp ban)",
+        "defaultValue": 5
+      },
+      "tier3Threshold": {
+        "type": "number",
+        "label": "Tier 3 threshold (perma ban)",
+        "defaultValue": 8
+      },
+      "decayWindowDays": {
+        "type": "number",
+        "label": "Violation decay window (days)",
+        "defaultValue": 30
+      },
+      "tier2BanDuration": {
+        "type": "number",
+        "label": "Tier 2 temp ban duration (days)",
+        "defaultValue": 14
+      },
+      "warningMessage": {
+        "type": "string",
+        "label": "Warning DM message",
+        "defaultValue": "You have received multiple content removals. Please review the community rules."
+      },
+      "banMessage": {
+        "type": "string",
+        "label": "Ban messsage",
+        "defaultValue": "You have been banned due to rule violations."
+      }
+    }
   }
 }

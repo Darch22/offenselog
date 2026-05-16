@@ -3,6 +3,7 @@ import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
 import { addViolation, Violation, getViolations, getActiveViolations, removeViolation, clearViolations, getCurrentTier, setCurrentTier } from '../core/violations'
 import { checkEscalation } from '../core/escalation';
 import { reddit } from '@devvit/web/server';
+import { settings } from '@devvit/web/server';
 
 
 export const triggers = new Hono();
@@ -51,6 +52,8 @@ triggers.post('/on-mod-action', async (c) => {
     const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
     const violationId = `${contentId}-${new Date(input.actionedAt).getTime()}`;
 
+    
+
     const violation: Violation = {
       id: violationId,
       contentId: contentId,
@@ -80,7 +83,8 @@ triggers.post('/on-mod-action', async (c) => {
   const allViolations = await getViolations(input.targetUser.id, input.subreddit.id);
   console.log('All violations: ', JSON.stringify(allViolations, null, 2));
 
-  const activeViolations = await getActiveViolations(input.targetUser.id, input.subreddit.id, 30)
+  const decayWindowDays = Number(await settings.get('decayWindowDays')) || 30;
+  const activeViolations = await getActiveViolations(input.targetUser.id, input.subreddit.id, decayWindowDays)
 
   const currentTier = await getCurrentTier(input.subreddit.id, input.targetUser.id);
 
