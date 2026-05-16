@@ -20,6 +20,20 @@
         "location": "post",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/mop-post"
+      },
+      {
+        "label": "View Violation History",
+        "description": "View this user's violation history in this subreddit.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/view-violations"
+      },
+      {
+        "label": "View Violation History",
+        "description": "View this user's violation history in this subreddit.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/view-violations"
       }
     ]
   },
