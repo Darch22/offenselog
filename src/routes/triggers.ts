@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
 import { addViolation, Violation, getViolations, getActiveViolations, removeViolation, clearViolations, getCurrentTier, setCurrentTier } from '../core/violations'
 import { checkEscalation } from '../core/escalation';
+import { reddit } from '@devvit/web/server';
 
 
 export const triggers = new Hono();
@@ -22,9 +23,34 @@ triggers.post('/on-app-install', async (c) => {
 
 triggers.post('/on-mod-action', async (c) => {
   const input = await c.req.json();
+
+
+  // REMOVE LATER
+  // await clearViolations(input.subreddit.id, input.targetUser.id);
+  // await setCurrentTier(input.subreddit.id, input.targetUser.id, 0);
+  
+
   if (input.action === 'removelink' || input.action === 'removecomment' || input.action === 'spamlink' || input.action === 'spamcomment') {
+
+    
+
+    if (input.moderator.name === 'AutoModerator') {
+      return c.json({status: 'success'}, 200);
+    }
+
+    // UNCOMMENT LATER
+    // const subreddit = await reddit.getSubredditByName(input.subreddit.name);
+    // const mods = await subreddit.getModerators().all();
+    // const isMod = mods.some((mod: any) => mod.username === input.targetUser.name);
+
+    // if (isMod) {
+    //   return c.json({status: 'success'}, 200);
+    // }
+
+
     const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
     const violationId = `${contentId}-${new Date(input.actionedAt).getTime()}`;
+
     const violation: Violation = {
       id: violationId,
       contentId: contentId,
@@ -72,11 +98,6 @@ triggers.post('/on-mod-action', async (c) => {
   }
 
   console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);
-
-
-
-
-
 
   return c.json({status: 'success'}, 200);
 });

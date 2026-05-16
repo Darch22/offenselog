@@ -41,6 +41,13 @@ export async function checkEscalation(
                 reason: 'Repeated violations',
             })
         }
+
+        await reddit.modMail.createModNotification({
+            subredditId: subredditId as `t5_${string}`,
+            subject: `[OffenseLog] Tier ${newTier} escalation: u/${userName}`,
+            bodyMarkdown: `**u/${userName}** has reached **${activeCount} active violations** and has been escalated to **Tier ${newTier}**.
+            \n\nAction taken: ${newTier === 1 ? 'Warning DM' : newTier === 2 ? '14-day temp ban' : 'Permanent ban'}`,
+        })
     }
 
     return newTier;
