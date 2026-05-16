@@ -8,20 +8,6 @@
   "menu": {
     "items": [
       {
-        "label": "Mop comments",
-        "description": "Remove this comment and all child comments. This might take a few seconds to run.",
-        "location": "comment",
-        "forUserType": "moderator",
-        "endpoint": "/internal/menu/mop-comment"
-      },
-      {
-        "label": "Mop post comments",
-        "description": "Remove all comments of this post. This might take a few seconds to run.",
-        "location": "post",
-        "forUserType": "moderator",
-        "endpoint": "/internal/menu/mop-post"
-      },
-      {
         "label": "View Violation History",
         "description": "View this user's violation history in this subreddit.",
         "location": "post",

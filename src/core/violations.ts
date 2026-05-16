@@ -13,13 +13,6 @@ export interface Violation {
     timestamp: number;
 }
 
-// REMOVE LATER: Clear Violations
-export async function clearViolations(subredditId: string, userId: string): Promise<void> {
-    const key = violationKey(subredditId, userId);
-    await redis.del(key);
-}
-
-
 function violationKey(subredditId: string, userId: string) : string {
     return `violations:${subredditId}:${userId}`;
 }

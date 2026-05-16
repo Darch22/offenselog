@@ -1,9 +1,8 @@
 import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
-import { addViolation, Violation, getViolations, getActiveViolations, removeViolation, clearViolations, getCurrentTier, setCurrentTier } from '../core/violations'
+import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier } from '../core/violations'
 import { checkEscalation } from '../core/escalation';
-import { reddit } from '@devvit/web/server';
-import { settings } from '@devvit/web/server';
+import { reddit, settings } from '@devvit/web/server';
 
 
 export const triggers = new Hono();
@@ -25,34 +24,22 @@ triggers.post('/on-app-install', async (c) => {
 triggers.post('/on-mod-action', async (c) => {
   const input = await c.req.json();
 
-
-  // REMOVE LATER
-  // await clearViolations(input.subreddit.id, input.targetUser.id);
-  // await setCurrentTier(input.subreddit.id, input.targetUser.id, 0);
-  
-
   if (input.action === 'removelink' || input.action === 'removecomment' || input.action === 'spamlink' || input.action === 'spamcomment') {
-
-    
 
     if (input.moderator.name === 'AutoModerator') {
       return c.json({status: 'success'}, 200);
     }
 
-    // UNCOMMENT LATER
-    // const subreddit = await reddit.getSubredditByName(input.subreddit.name);
-    // const mods = await subreddit.getModerators().all();
-    // const isMod = mods.some((mod: any) => mod.username === input.targetUser.name);
+    const subreddit = await reddit.getSubredditByName(input.subreddit.name);
+    const mods = await subreddit.getModerators().all();
+    const isMod = mods.some((mod: any) => mod.username === input.targetUser.name);
 
-    // if (isMod) {
-    //   return c.json({status: 'success'}, 200);
-    // }
-
+    if (isMod) {
+      return c.json({status: 'success'}, 200);
+    }
 
     const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
     const violationId = `${contentId}-${new Date(input.actionedAt).getTime()}`;
-
-    
 
     const violation: Violation = {
       id: violationId,
@@ -66,7 +53,6 @@ triggers.post('/on-mod-action', async (c) => {
       timestamp: new Date(input.actionedAt).getTime()
     };
 
-
     const wasStored = await addViolation(input.subreddit.id, violation)
     console.log(`Violation ${wasStored ? 'stored' : 'duplicate skipped'}: ${violationId}`);
 
@@ -77,11 +63,6 @@ triggers.post('/on-mod-action', async (c) => {
     const wasRemoved = await removeViolation(input.subreddit.id, input.targetUser.id, contentId);
     console.log(`Re-approval: violation ${wasRemoved ? 'removed' : 'not found'} for ${contentId}`);
   }
-
-  
-  
-  const allViolations = await getViolations(input.targetUser.id, input.subreddit.id);
-  console.log('All violations: ', JSON.stringify(allViolations, null, 2));
 
   const decayWindowDays = Number(await settings.get('decayWindowDays')) || 30;
   const activeViolations = await getActiveViolations(input.targetUser.id, input.subreddit.id, decayWindowDays)
