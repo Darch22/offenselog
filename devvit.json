@@ -93,5 +93,13 @@
         "defaultValue": "You have been banned due to rule violations."
       }
     }
+  },
+  "scheduler": {
+    "tasks": {
+      "decay-cleanup-task": {
+        "endpoint": "/internal/scheduler/decay-cleanup-task",
+        "cron": "0 4 * * *"
+      }
+    }
   }
 }

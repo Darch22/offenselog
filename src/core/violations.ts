@@ -48,6 +48,8 @@ export async function addViolation(
         score: violation.timestamp,
         member: JSON.stringify(violation)
     })
+
+    await redis.zAdd(`active_users:${subredditId}`, {score: Date.now(), member: violation.targetUserId});
     
     return true;
 }
