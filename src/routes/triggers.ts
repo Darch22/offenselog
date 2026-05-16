@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
-import { addViolation, Violation, getViolations, getActiveViolations, removeViolation, clearViolations } from '../core/violations'
+import { addViolation, Violation, getViolations, getActiveViolations, removeViolation, clearViolations, getCurrentTier, setCurrentTier } from '../core/violations'
 import { checkEscalation } from '../core/escalation';
 
 
@@ -50,14 +50,20 @@ triggers.post('/on-mod-action', async (c) => {
 
   const activeViolations = await getActiveViolations(input.targetUser.id, input.subreddit.id, 30)
 
+  const currentTier = await getCurrentTier(input.subreddit.id, input.targetUser.id);
+
   const newTier = await checkEscalation(
     activeViolations.length,
-    0,
+    currentTier,
     input.targetUser.id,
     input.targetUser.name,
     input.subreddit.id,
     input.subreddit.name
   );
+
+  if (newTier > currentTier) {
+    await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier);
+  }
 
   console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);
 

@@ -99,3 +99,20 @@ export async function removeViolation(
 
     return false;
 }
+
+export async function getCurrentTier(
+    subredditId: string,
+    userId: string
+): Promise<number> {
+
+    const value = await redis.get(`tier:${subredditId}:${userId}`);
+    return value ? parseInt(value) : 0;
+}
+
+export async function setCurrentTier(
+    subredditId: string,
+    userId: string, 
+    tier: number
+): Promise<void> {
+    await redis.set(`tier:${subredditId}:${userId}`, tier.toString());
+}
