@@ -43,6 +43,12 @@ triggers.post('/on-mod-action', async (c) => {
 
   }
 
+    if (input.action === 'approvelink' || input.action === 'approvecomment') {
+    const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
+    const wasRemoved = await removeViolation(input.subreddit.id, input.targetUser.id, contentId);
+    console.log(`Re-approval: violation ${wasRemoved ? 'removed' : 'not found'} for ${contentId}`);
+  }
+
   
   
   const allViolations = await getViolations(input.targetUser.id, input.subreddit.id);
@@ -66,6 +72,8 @@ triggers.post('/on-mod-action', async (c) => {
   }
 
   console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);
+
+
 
 
 
