@@ -4,7 +4,7 @@ import { settings } from "@devvit/web/server";
 export async function checkEscalation(
     activeCount: number,
     currentTier: number,
-    userId: string,
+    _userId: string,
     userName: string,
     subredditId: string,
     subredditName: string
