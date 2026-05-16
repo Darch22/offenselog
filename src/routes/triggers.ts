@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
-import { addViolation, Violation, getViolations } from '../core/violations'
+import { addViolation, Violation, getViolations, getActiveViolations, removeViolation } from '../core/violations'
 
 
 export const triggers = new Hono();
@@ -36,10 +36,19 @@ triggers.post('/on-mod-action', async (c) => {
 
     const wasStored = await addViolation(input.subreddit.id, violation)
     console.log(`Violation ${wasStored ? 'stored' : 'duplicate skipped'}: ${violationId}`);
+
+    const wasRemoved = await removeViolation(input.subreddit.id, input.targetUser.id, 't3_1tebn08' )
+    console.log(`Removal test: ${wasRemoved}`);
   }
   
   const allViolations = await getViolations(input.targetUser.id, input.subreddit.id);
   console.log('All violations: ', JSON.stringify(allViolations, null, 2));
+
+  const activeViolations = await getActiveViolations(input.targetUser.id, input.subreddit.id, 30)
+  console.log('Active violations (30 days):', JSON.stringify(activeViolations, null, 2));
+
+
+
 
   return c.json({status: 'success'}, 200);
 });

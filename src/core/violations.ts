@@ -55,6 +55,41 @@ export async function getViolations(
 
     const entries = await redis.zRange(key, 0, -1);
     const violations: Violation[] = entries.map((entry) => JSON.parse(entry.member) as Violation)
-    
+
     return violations;
+}
+
+export async function getActiveViolations(
+    userId: string,
+    subredditId: string,
+    decayDays: number
+): Promise<Violation[]> {
+    const key = violationKey(subredditId, userId);
+    const startScore = Date.now() - decayDays * 24 * 60 * 60 * 1000;
+    const endScore = Date.now();
+
+    const entries = await redis.zRange(key, startScore, endScore, {by: 'score'});
+    const violations: Violation[] = entries.map((entry) => JSON.parse(entry.member) as Violation)
+
+    return violations;
+}
+
+export async function removeViolation(
+    subredditId: string,
+    userId: string,
+    contentId: string
+): Promise<boolean> {
+    const key = violationKey(subredditId, userId);
+
+    const entries = await redis.zRange(key, 0, -1);
+    
+    for (const entry of entries) {
+        const parsed = JSON.parse(entry.member) as Violation;
+        if(parsed.contentId === contentId) {
+            await redis.zRem(key, [entry.member]);
+            return true;
+        }
+    } 
+
+    return false;
 }
