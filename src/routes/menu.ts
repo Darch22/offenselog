@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { reddit } from '@devvit/web/server';
 import { getViolations, getActiveViolations, getCurrentTier } from '../core/violations';
-import { title } from 'process';
 
 export const menu = new Hono();
 
