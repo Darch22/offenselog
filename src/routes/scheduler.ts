@@ -23,6 +23,7 @@ scheduler.post('/decay-cleanup-task', async (c) => {
 
         if(remaining === 0) {
             await redis.zRem(activeUsersKey, [userId]);
+            await redis.set(`tier:${subreddit.id}:${userId}`, '0');
         }
     }
 

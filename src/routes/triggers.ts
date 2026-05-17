@@ -92,12 +92,17 @@ triggers.post('/on-mod-action', async (c) => {
       await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier);
     }
 
+    if(newTier < currentTier) {
+      await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier)
+      console.log(`De-escalated ${input.targetUser.name} from Tier ${currentTier} to Tier ${newTier}`);
+    }
+
     console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);
 
     return c.json({status: 'success'}, 200);
   } catch (err) {
     console.error('Error in mod action handler:', err);
-    
+
     return c.json({status: 'error'}, 200);
   }
 });
