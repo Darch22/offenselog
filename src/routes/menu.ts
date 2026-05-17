@@ -43,7 +43,7 @@ menu.post('/view-violations', async (c) => {
               label: 'Recent Violations',
               type: 'paragraph',
               defaultValue: activeViolations.map((v, i) =>
-                `${i + 1}. ${v.contentType} | ${v.action} | ${new Date(v.timestamp).toLocaleDateString()} | Mod: ${v.modName}`).join('\n')
+                `${i + 1}. ${v.contentType} | ${v.action} | ${v.rule || 'No rule'} |${new Date(v.timestamp).toLocaleDateString()} | Mod: ${v.modName}`).join('\n')
             },
           ],
         },
@@ -72,7 +72,7 @@ menu.post('/reset-violations', async (c) => {
     showForm: {
       name: "resetViolations",
       form: {
-        title: `Reset Violations for /u${authorName}`,
+        title: `Reset Violations for u/${authorName}`,
         description: `This will permanently delete all tracked violations and reset their tier to 0. This cannot be undone.`,
         fields: [
           {name: 'authorId', type: 'string', label: 'User Id', defaultValue: authorId, disabled: true},
