@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
-import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier } from '../core/violations'
+import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier, updateViolationRule } from '../core/violations'
 import { checkEscalation } from '../core/escalation';
 import { reddit, settings } from '@devvit/web/server';
 
@@ -45,6 +45,7 @@ triggers.post('/on-mod-action', async (c) => {
         contentId: contentId,
         contentType: input.action.includes('link') ? 'post' : 'comment',
         action: input.action,
+        rule: '',
         modId: input.moderator.id,
         modName: input.moderator.name,
         targetUserId: input.targetUser.id,
@@ -60,7 +61,17 @@ triggers.post('/on-mod-action', async (c) => {
       if (input.action === 'approvelink' || input.action === 'approvecomment') {
       const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
       const wasRemoved = await removeViolation(input.subreddit.id, input.targetUser.id, contentId);
+
       console.log(`Re-approval: violation ${wasRemoved ? 'removed' : 'not found'} for ${contentId}`);
+    }
+
+    if (input.action === 'addremovalreason') {
+      const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
+      const ruleName = input.description;
+
+      await updateViolationRule(input.subreddit.id, input.targetUser.id, contentId, ruleName);
+
+      console.log(`Rule attached: ${ruleName} to ${contentId}`);
     }
 
     const decayWindowDays = Number(await settings.get('decayWindowDays')) || 30;
@@ -86,6 +97,7 @@ triggers.post('/on-mod-action', async (c) => {
     return c.json({status: 'success'}, 200);
   } catch (err) {
     console.error('Error in mod action handler:', err);
+    
     return c.json({status: 'error'}, 200);
   }
 });

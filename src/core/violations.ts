@@ -6,6 +6,7 @@ export interface Violation {
     contentId: string;
     contentType: 'post' | 'comment';
     action: string;
+    rule: string;
     modId: string;
     modName: string;
     targetUserId: string;
@@ -115,4 +116,31 @@ export async function setCurrentTier(
     tier: number
 ): Promise<void> {
     await redis.set(`tier:${subredditId}:${userId}`, tier.toString());
+}
+
+export async function updateViolationRule(
+    subredditId: string,
+    userId: string,
+    contentId: string,
+    rule: string
+): Promise<boolean> {
+    const key = violationKey(subredditId, userId);
+    const entries = await redis.zRange(key, 0, -1);
+
+    for (const entry of entries) {
+        const parsed = JSON.parse(entry.member) as Violation;
+
+        if(parsed.contentId === contentId) {
+            await redis.zRem(key, [entry.member]);
+
+            parsed.rule = rule;
+
+            await redis.zAdd(key, {
+                score: parsed.timestamp,
+                member: JSON.stringify(parsed)
+            });
+            return true;
+        }
+    }
+    return false;
 }
