@@ -20,11 +20,26 @@
         "location": "comment",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/view-violations"
+      },
+      {
+        "label": "Reset Violation History",
+        "description": "Clear the user's violation history in this subreddit.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/reset-violations"
+      },
+      {
+        "label": "Reset Violation History",
+        "description": "Clear the user's violation history in this subreddit.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/reset-violations"
       }
     ]
   },
   "forms": {
-    "violationHistory": "/internal/form/violation-history-submit"
+    "violationHistory": "/internal/form/violation-history-submit",
+    "resetViolations": "/internal/form/reset-violations-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",
