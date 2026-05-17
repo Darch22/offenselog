@@ -27,36 +27,52 @@ export async function checkEscalation(
 
     if (newTier > currentTier) {
         if (newTier === 1) {
-            await reddit.sendPrivateMessage({
-                to: userName,
-                subject: `Warning from r/${subredditName}`,
-                text: warningMessage
-            })
+            try {
+                await reddit.sendPrivateMessage({
+                    to: userName,
+                    subject: `Warning from r/${subredditName}`,
+                    text: warningMessage
+                })
+            } catch(err) {
+                console.error('Failed to send warning DM:', err);
+            }
         } else if (newTier === 2) {
-            await reddit.banUser({
-                username: userName,
-                subredditName: subredditName,
-                context: 'Temp Ban',
-                message: banMessage,
-                reason: 'Repeated violations',
-                duration: banDuration
-            })
+            try {
+                    await reddit.banUser({
+                    username: userName,
+                    subredditName: subredditName,
+                    context: 'Temp Ban',
+                    message: banMessage,
+                    reason: 'Repeated violations',
+                    duration: banDuration
+                })
+            } catch(err) {
+                console.error('Failed to temp ban:', err);
+            }
         } else if (newTier === 3) {
-            await reddit.banUser({
-                username: userName,
-                subredditName: subredditName,
-                context: 'Permanent Ban',
-                message: banMessage,
-                reason: 'Repeated violations',
-            })
+            try {
+                await reddit.banUser({
+                    username: userName,
+                    subredditName: subredditName,
+                    context: 'Permanent Ban',
+                    message: banMessage,
+                    reason: 'Repeated violations',
+                })
+            } catch(err) {
+                console.error('Failed to perma ban:', err);
+            }
         }
 
-        await reddit.modMail.createModNotification({
-            subredditId: subredditId as `t5_${string}`,
-            subject: `[OffenseLog] Tier ${newTier} escalation: u/${userName}`,
-            bodyMarkdown: `**u/${userName}** has reached **${activeCount} active violations** and has been escalated to **Tier ${newTier}**.
-            \n\nAction taken: ${newTier === 1 ? 'Warning DM' : newTier === 2 ? '14-day temp ban' : 'Permanent ban'}`,
-        })
+        try {
+            await reddit.modMail.createModNotification({
+                subredditId: subredditId as `t5_${string}`,
+                subject: `[OffenseLog] Tier ${newTier} escalation: u/${userName}`,
+                bodyMarkdown: `**u/${userName}** has reached **${activeCount} active violations** and has been escalated to **Tier ${newTier}**.
+                \n\nAction taken: ${newTier === 1 ? 'Warning DM' : newTier === 2 ? '14-day temp ban' : 'Permanent ban'}`,
+            })
+        } catch(err) {
+            console.error('Failed to send modmail notification:', err);
+        }
     }
 
     return newTier;
