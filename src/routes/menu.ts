@@ -32,8 +32,22 @@ menu.post('/view-violations', async (c) => {
 
   return c.json<UiResponse>(
     {
-      showToast: `u/${authorName}: ${activeViolations.length} active / ${allViolations.length} total violations | Tier ${tier}`,
-    },
-    200
-  )
+      // showToast: `u/${authorName}: ${activeViolations.length} active / ${allViolations.length} total violations | Tier ${tier}`,
+      showForm: {
+        name: 'violationHistory',
+        form: {
+          title: `Violation History: u/${authorName}`,
+          description: `Tier: ${tier} | Active: ${activeViolations.length} | Total: ${allViolations.length}`,
+          fields: [
+            {
+              name: 'details',
+              label: 'Recent Violations',
+              type: 'paragraph',
+              defaultValue: activeViolations.map((v, i) =>
+                `${i + 1}. ${v.contentType} | ${v.action} | ${new Date(v.timestamp).toLocaleDateString()} | Mod: ${v.modName}`).join('\n')
+            },
+          ],
+        },
+      },
+    }, 200)
 })

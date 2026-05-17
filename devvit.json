@@ -24,8 +24,7 @@
     ]
   },
   "forms": {
-    "mopComment": "/internal/form/mop-comment-submit",
-    "mopPost": "/internal/form/mop-post-submit"
+    "violationHistory": "/internal/form/violation-history-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",
