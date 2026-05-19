@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
-import { reddit } from '@devvit/web/server';
+import { reddit, settings } from '@devvit/web/server';
 import { getViolations, getActiveViolations, getCurrentTier } from '../core/violations';
 
 export const menu = new Hono();
@@ -26,7 +26,8 @@ menu.post('/view-violations', async (c) => {
   
   const subreddit = await reddit.getCurrentSubreddit();
   const allViolations = await getViolations(authorId, subreddit.id);
-  const activeViolations = await getActiveViolations(authorId, subreddit.id, 30);
+  const decayWindowDays = Number(await settings.get('decayWindowDays')) || 30;
+  const activeViolations = await getActiveViolations(authorId, subreddit.id, decayWindowDays);
   const tier = await getCurrentTier(subreddit.id, authorId);
   
 
@@ -43,7 +44,7 @@ menu.post('/view-violations', async (c) => {
               label: 'Recent Violations',
               type: 'paragraph',
               defaultValue: activeViolations.map((v, i) =>
-                `${i + 1}. ${v.contentType} | ${v.action} | ${v.rule || 'No rule'} |${new Date(v.timestamp).toLocaleDateString()} | Mod: ${v.modName}`).join('\n')
+                `#${i + 1} — ${new Date(v.timestamp).toLocaleDateString()}\nType: ${v.contentType} Action: ${v.action}\nRule: ${v.rule || 'None'}  Mod: ${v.modName}\n`).join('\n')
             },
           ],
         },
@@ -76,13 +77,30 @@ menu.post('/reset-violations', async (c) => {
         description: `This will permanently delete all tracked violations and reset their tier to 0. This cannot be undone.`,
         fields: [
           {name: 'authorId', type: 'string', label: 'User Id', defaultValue: authorId, disabled: true},
-          {name: 'authorName', type: 'string', label: 'Username', defaultValue: authorName, disabled: true}
+          {name: 'authorName', type: 'string', label: 'Username', defaultValue: authorName, disabled: true},
+          {name: 'confirm', type: 'string', label: `Type "${authorName}" to confirm`}
         ],
         acceptLabel: 'Reset',
         cancelLabel: 'Cancel'
       },
     },
-  }, 200)
+  }, 200);
+});
+
+
+menu.post('/lookup-user', async (c) => {
+  return c.json<UiResponse>({
+    showForm: {
+      name: 'lookupInput',
+      form: {
+        title: 'Lookup User Violations',
+        fields: [
+          {name: 'username', type: 'string', label: 'Reddit username (without u/)'}
+        ],
+        acceptLabel: 'Lookup'
+      }
+    }
+  }, 200);
 });
 
 

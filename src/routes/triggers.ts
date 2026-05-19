@@ -90,11 +90,45 @@ triggers.post('/on-mod-action', async (c) => {
 
     if (newTier > currentTier) {
       await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier);
+
+      const banDuration = Number(await settings.get('tier2BanDuration')) || 14;
+      const actionTaken = newTier === 1 ? 'a warning DM' : newTier === 2 ? `a ${banDuration}-day temp ban`: 'a permanent ban'
+
+      try {
+        await reddit.sendPrivateMessage({
+              to: input.moderator.name,
+              subject: `[OffenseLog] Escalation triggered in r/${input.subreddit.name}`,
+              text: `Your removal of ${input.targetUser.name}'s content pushed them to Tier ${newTier}. OffenseLog has issued ${actionTaken}.`
+          });
+      } catch (err) {
+        console.error('Failed to notify acting mod: ', err);
+        
+      }
     }
 
-    if(newTier < currentTier) {
+    if (newTier < currentTier) {
       await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier)
-      console.log(`De-escalated ${input.targetUser.name} from Tier ${currentTier} to Tier ${newTier}`);
+      if (newTier === 0) {
+        try {
+          await reddit.sendPrivateMessage({
+            to: input.targetUser.name,
+            subject: `Standing update from r/${input.subreddit.name}`,
+            text: `Hi u/${input.targetUser.name}, your violations in r/${input.subreddit.name} have expired. You are back in good standing.`
+          });
+        } catch (err) {
+          console.error('Failed to send de-escalation DM: ', err);
+        }
+      }
+
+      try {
+        await reddit.modMail.createModNotification({
+          subredditId: input.subreddit.id as `t5_${string}`,
+          subject: `[OffenseLog] De-escalation: u/${input.targetUser.name}`,
+          bodyMarkdown: `**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation decay.`
+        });
+      } catch(err) {
+        console.error('Failed to send de-escalation modmail:', err);
+      }
     }
 
     console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);

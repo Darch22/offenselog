@@ -34,12 +34,21 @@
         "location": "comment",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/reset-violations"
+      },
+      {
+        "label": "Lookup User Violations",
+        "description": "Look up any user's violation history by username.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/lookup-user"
       }
     ]
   },
   "forms": {
     "violationHistory": "/internal/form/violation-history-submit",
-    "resetViolations": "/internal/form/reset-violations-submit"
+    "resetViolations": "/internal/form/reset-violations-submit",
+    "lookupInput": "/internal/form/lookup-input-submit",
+    "lookupResult": "/internal/form/lookup-result-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",
@@ -89,7 +98,7 @@
       },
       "banMessage": {
         "type": "string",
-        "label": "Ban messsage",
+        "label": "Ban message",
         "defaultValue": "You have been banned due to rule violations."
       }
     }

@@ -14,6 +14,8 @@ export async function checkEscalation(
     const tier2Threshold = Number(await settings.get('tier2Threshold')) || 5;
     const tier3Threshold = Number(await settings.get('tier3Threshold')) || 8;
     const banDuration = Number(await settings.get('tier2BanDuration')) || 14;
+    const warningMessage = String(await settings.get('warningMessage')) || 'You have received multiple content removals. Please review the community rules.';
+    const banMessage = String(await settings.get('banMessage')) || 'You have been banned due to rule violations.';
 
 
     let newTier = 0;
@@ -30,9 +32,7 @@ export async function checkEscalation(
                 await reddit.sendPrivateMessage({
                     to: userName,
                     subject: `Warning from r/${subredditName}`,
-                    text: `Hi u/${userName},\n\nYou have had ${activeCount} post/comment removal(s) in 
-                    r/${subredditName} within the past 30 days.\n\nPlease review the community rules at 
-                    r/${subredditName}/about/rules to avoid further action.\n\nContinued violations may result in a temporary or permanent ban.`
+                    text: warningMessage
                 })
             } catch(err) {
                 console.error('Failed to send warning DM:', err);
@@ -43,8 +43,7 @@ export async function checkEscalation(
                     username: userName,
                     subredditName: subredditName,
                     context: 'Temp Ban',
-                    message: `You have been temporarily banned from r/${subredditName} for ${banDuration} days due to 
-                    ${activeCount} rule violations.\n\nPlease review the community rules at r/${subredditName}/about/rules before your ban expires.`,
+                    message: banMessage,
                     reason: `Automated: ${activeCount} violations (Tier 2)`,
                     duration: banDuration
                 })
@@ -57,8 +56,7 @@ export async function checkEscalation(
                     username: userName,
                     subredditName: subredditName,
                     context: 'Permanent Ban',
-                    message: `You have been permanently banned from r/${subredditName} due to ${activeCount} rule violations.
-                    \n\nIf you believe this is an error, you may contact the mod team via modmail.`,
+                    message: banMessage,
                     reason: `Automated: ${activeCount} violations (Tier 3)`,
                 })
             } catch(err) {
@@ -70,8 +68,7 @@ export async function checkEscalation(
             await reddit.modMail.createModNotification({
                 subredditId: subredditId as `t5_${string}`,
                 subject: `[OffenseLog] Tier ${newTier} escalation: u/${userName}`,
-                bodyMarkdown: `**u/${userName}** has reached **${activeCount} active violations** and has been escalated to **Tier ${newTier}**.
-                \n\nAction taken: ${newTier === 1 ? 'Warning DM' : newTier === 2 ? '14-day temp ban' : 'Permanent ban'}`,
+                bodyMarkdown: `**u/${userName}** has reached **${activeCount} active violations** and has been escalated to **Tier ${newTier}**.\n\nAction taken: ${newTier === 1 ? 'Warning DM' : newTier === 2 ? `${banDuration}-day temp ban` : 'Permanent ban'}`,
             })
         } catch(err) {
             console.error('Failed to send modmail notification:', err);
