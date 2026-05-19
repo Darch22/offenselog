@@ -44,7 +44,7 @@ menu.post('/view-violations', async (c) => {
               label: 'Recent Violations',
               type: 'paragraph',
               defaultValue: activeViolations.map((v, i) =>
-                `#${i + 1} — ${new Date(v.timestamp).toLocaleDateString()}\nType: ${v.contentType} Action: ${v.action}\nRule: ${v.rule || 'None'}  Mod: ${v.modName}\n`).join('\n')
+                `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | Type: ${v.contentType} | Action: ${v.action}\nRule: ${v.rule || 'None'}\nMod: ${v.modName}\n`).join('\n')
             },
           ],
         },

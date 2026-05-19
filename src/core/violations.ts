@@ -16,7 +16,12 @@ export interface Violation {
 
 export async function clearViolations(subredditId: string, userId: string): Promise<void> {
     const key = violationKey(subredditId, userId);
+    const entries = await redis.zRange(key, 0, -1);
     await redis.del(key);
+    for (const entry of entries) {
+        const parsed = JSON.parse(entry.member) as Violation;
+        await redis.del(`content_violation:${subredditId}:${parsed.contentId}`);
+    }
 }
 
 function violationKey(subredditId: string, userId: string) : string {
@@ -46,8 +51,10 @@ export async function addViolation(
     await redis.zAdd(key, {
         score: violation.timestamp,
         member: JSON.stringify(violation)
-    })
+    });
 
+    
+    await redis.set(`content_violation:${subredditId}:${violation.contentId}`, JSON.stringify(violation));
     await redis.zAdd(`active_users:${subredditId}`, {score: Date.now(), member: violation.targetUserId});
     
     return true;
@@ -87,18 +94,27 @@ export async function removeViolation(
     contentId: string
 ): Promise<boolean> {
     const key = violationKey(subredditId, userId);
+    const indexKey = `content_violation:${subredditId}:${contentId}`;
 
-    const entries = await redis.zRange(key, 0, -1);
+    const memberStr =await redis.get(indexKey);
+    if(!memberStr) return false;
+
+    await redis.zRem(key, [memberStr]);
+    await redis.del(indexKey);
+
+    return true;
+
+    // const entries = await redis.zRange(key, 0, -1);
     
-    for (const entry of entries) {
-        const parsed = JSON.parse(entry.member) as Violation;
-        if(parsed.contentId === contentId) {
-            await redis.zRem(key, [entry.member]);
-            return true;
-        }
-    } 
+    // for (const entry of entries) {
+    //     const parsed = JSON.parse(entry.member) as Violation;
+    //     if(parsed.contentId === contentId) {
+    //         await redis.zRem(key, [entry.member]);
+    //         return true;
+    //     }
+    // } 
 
-    return false;
+    // return false;
 }
 
 export async function getCurrentTier(
@@ -125,22 +141,36 @@ export async function updateViolationRule(
     rule: string
 ): Promise<boolean> {
     const key = violationKey(subredditId, userId);
-    const entries = await redis.zRange(key, 0, -1);
+    const indexKey = `content_violation:${subredditId}:${contentId}`;
 
-    for (const entry of entries) {
-        const parsed = JSON.parse(entry.member) as Violation;
+    const memberStr = await redis.get(indexKey);
+    if (!memberStr) return false;
 
-        if(parsed.contentId === contentId) {
-            await redis.zRem(key, [entry.member]);
+    const parsed = JSON.parse(memberStr) as Violation;
+    parsed.rule = rule;
+    const newMemberStr = JSON.stringify(parsed);
 
-            parsed.rule = rule;
+    await redis.zRem(key, [memberStr]);
+    await redis.zAdd(key, {score: parsed.timestamp, member: newMemberStr});
+    await redis.set(indexKey, newMemberStr);
 
-            await redis.zAdd(key, {
-                score: parsed.timestamp,
-                member: JSON.stringify(parsed)
-            });
-            return true;
-        }
-    }
-    return false;
+    return true;
+    // const entries = await redis.zRange(key, 0, -1);
+
+    // for (const entry of entries) {
+    //     const parsed = JSON.parse(entry.member) as Violation;
+
+    //     if(parsed.contentId === contentId) {
+    //         await redis.zRem(key, [entry.member]);
+
+    //         parsed.rule = rule;
+
+    //         await redis.zAdd(key, {
+    //             score: parsed.timestamp,
+    //             member: JSON.stringify(parsed)
+    //         });
+    //         return true;
+    //     }
+    // }
+    // return false;
 }

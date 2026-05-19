@@ -11,6 +11,20 @@ triggers.post('/on-app-install', async (c) => {
   const input = await c.req.json<OnAppInstallRequest>();
   console.log('App installed to subreddit: r/' + input.subreddit?.name);
 
+  try {
+    const subredditId = input.subreddit?.id;
+    const subredditName = input.subreddit?.name;
+
+    if (subredditId && subredditName) {
+      await reddit.modMail.createModNotification({
+        subredditId: subredditId as `t5_${string}`,
+        subject: `[OffenseLog] Installed in r/${subredditName}`,
+        bodyMarkdown: `OffenseLog is now active in this subreddit. It tracks moderator removals per user and runs a 3-tier escalation engine (warn → temp ban → perma ban) with automatic decay after a configurable window.\n\n**Recommended first step: enable Dry run mode.**\nGo to *Subreddit Settings → Apps → OffenseLog* and turn on **Dry run mode**. This lets OffenseLog log violations and compute tiers without sending any DMs or bans. You'll see [DRY RUN] modmail notifications showing what the system would have done. Review for a week, tune thresholds, then disable dry-run to go live.\n\n**Defaults:**\n- Tier 1 (warning DM): 3 violations\n- Tier 2 (temp ban, 14 days): 5 violations\n- Tier 3 (permanent ban): 8 violations\n- Violations decay after 30 days\n\n**Moderator tools:**\n- Click mod actions on any post or comment → "View Violation History" or "Reset Violation History"\n- Subreddit menu → "Lookup User Violations" (search by username)\n\nConfigure thresholds, decay window, ban duration, and message templates in Subreddit Settings → Apps → OffenseLog.`});
+    }
+  } catch (err) {
+    console.error('Failed to send welcome modmail:', err);
+  }
+
   return c.json<TriggerResponse>(
     {
       status: 'success',
@@ -107,16 +121,20 @@ triggers.post('/on-mod-action', async (c) => {
     }
 
     if (newTier < currentTier) {
+      const dryRun = Boolean(await settings.get('dryRun'));   
+
       await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier)
       if (newTier === 0) {
-        try {
-          await reddit.sendPrivateMessage({
-            to: input.targetUser.name,
-            subject: `Standing update from r/${input.subreddit.name}`,
-            text: `Hi u/${input.targetUser.name}, your violations in r/${input.subreddit.name} have expired. You are back in good standing.`
-          });
-        } catch (err) {
-          console.error('Failed to send de-escalation DM: ', err);
+        if(!dryRun) {
+          try {
+            await reddit.sendPrivateMessage({
+              to: input.targetUser.name,
+              subject: `Standing update from r/${input.subreddit.name}`,
+              text: `Hi u/${input.targetUser.name}, your violations in r/${input.subreddit.name} have expired. You are back in good standing.`
+            });
+          } catch (err) {
+            console.error('Failed to send de-escalation DM: ', err);
+          }
         }
       }
 
@@ -124,7 +142,7 @@ triggers.post('/on-mod-action', async (c) => {
         await reddit.modMail.createModNotification({
           subredditId: input.subreddit.id as `t5_${string}`,
           subject: `[OffenseLog] De-escalation: u/${input.targetUser.name}`,
-          bodyMarkdown: `**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation decay.`
+          bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation decay.`
         });
       } catch(err) {
         console.error('Failed to send de-escalation modmail:', err);

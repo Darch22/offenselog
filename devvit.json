@@ -62,10 +62,16 @@
     "reddit": true
   },
   "dev": {
-    "subreddit": "offenselog_dev"
+    "subreddit": "offenselog_dev2"
   },
   "settings": {
     "subreddit": {
+      "dryRun": {
+        "type": "boolean",
+        "label": "Dry run mode (log only - no DMs, no bans)",
+        "helpText": "When enabled, OffenseLog tracks violations and computes tiers but does NOT send warning DMs, ban users, or send the user-facing good-standing DM. Modmail notifications still fire (prefixed with [DRY RUN]) so you can see what the system would have done. Recommended for the first week after install.",
+        "defaultValue": false
+      },
       "tier1Threshold": {
         "type": "number",
         "label": "Tier 1 threshold (warning)",

@@ -6,7 +6,8 @@ A Reddit moderation tool built with Devvit that automatically tracks user rule v
 
 OffenseLog listens for mod actions in real time. Every time a moderator removes a post or comment, the violation is logged against that user. As violations stack up within a configurable time window, the app automatically escalates consequences: a warning DM, then a temporary ban, then a permanent ban. When violations decay past the window or content is re-approved, the user's standing is updated accordingly.
 
-Moderators never have to count violations manually or remember who got warned last month.
+Moderators never have to count violations manually or remember who got warned last month, a subreddit with 10 removals/week would otherwise require mods to track 520 violations/year
+manually.
 
 ## Features
 
@@ -25,6 +26,7 @@ Moderators never have to count violations manually or remember who got warned la
 - **Manual Reset**: Moderators can wipe a user's entire violation record and reset their tier to 0 from the same context menu
 - **Violation Decay**: Violations older than the configured window are automatically excluded from tier calculations
 - **Daily Cleanup**: A scheduled task runs every night at 4 AM to prune expired violations from storage
+- **User Lookup**: Search any user's violation history by username from the subreddit menu — no post or comment needed
 
 ## Tech Stack
 
@@ -65,12 +67,17 @@ src/
 └── routes/
     ├── api.ts                      # Public API endpoints (extendable)
     ├── forms.ts                    # Form submission handlers (view history, reset)
-    ├── menu.ts                     # Context menu handlers (view/reset violations)
+    ├── menu.ts                     # Context menu handlers (view/reset violations, user lookup)
     ├── scheduler.ts                # Nightly decay cleanup task
     └── triggers.ts                 # onAppInstall and onModAction event handlers
 ```
 
 ## Configuration
+
+First install? Turn on Dry run mode in subreddit settings before you do anything else. OffenseLog will log
+violations and compute tiers, but will not send DMs or issue bans. You'll get modmail notifications labeled
+[DRY RUN] showing what the system would have done. After a week, review the logs, tune your thresholds, then
+turn dry-run off.
 
 All settings are configurable per-subreddit from the app's settings page after installation:
 
@@ -121,10 +128,11 @@ A scheduled cron task runs daily at 4:00 AM. It iterates all users who have ever
 
 ### Context Menu
 
-Moderators see two items on every post and comment:
+Moderators see two items on every post and comment, plus one item on the subreddit menu:
 
 - **View Violation History** — Opens a read-only form showing the user's current tier, active violation count, total violation count, and a list of recent violations with content type, action, rule, date, and acting moderator.
 - **Reset Violation History** — Opens a confirmation form. On accept, all violations are deleted from Redis and the user's tier is set back to 0.
+ - **Lookup User Violations** — Available from the subreddit menu. Opens a username input form; returns the same history view as above for any user, without needing an existing post or comment from them. 
 
 ## Commands
 

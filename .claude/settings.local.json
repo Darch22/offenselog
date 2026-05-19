@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"E:\\\\Code\\\\projects\\\\reddit_offense_log\\\\offenselog\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "WebFetch(domain:mod-tools-migration.devpost.com)"
+    ]
+  }
+}
