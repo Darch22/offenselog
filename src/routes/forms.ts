@@ -79,3 +79,7 @@ forms.post('/lookup-input-submit', async (c) => {
 forms.post('/lookup-result-submit', async (c) => {
     return c.json<UiResponse>({ showToast: '' }, 200);
 });
+
+forms.post('/dashboard-submit', async (c) => {
+    return c.json<UiResponse>({showToast: ''}, 200);
+});

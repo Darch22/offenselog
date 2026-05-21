@@ -155,3 +155,41 @@ export async function claimEscalation(
     const result = await redis.set(key, '1', {nx: true});
     return result !== null;
 }
+
+export async function getTopOffenders(
+    subredditId: string,
+    days: number,
+    limit: number
+): Promise<Array<{userName: string; count: number; tier: number}>> {
+    const allUsers = await redis.zRange(`active_users:${subredditId}`, 0, -1);
+    if (allUsers.length === 0) return [];
+
+    const candidates = [...allUsers]
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .slice(0, 50);
+
+    const windowStart = Date.now() - days * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const recentBatch = await Promise.all(
+        candidates.map(entry => redis.zRange(violationKey(subredditId, entry.member), windowStart, now, {by: 'score'}))
+    );
+
+    const active = candidates.map((entry, i) => ({userId: entry.member, recent: recentBatch[i] ?? []}))
+                             .filter(({recent}) => recent.length > 0);
+
+    if (active.length === 0) return [];
+
+    const tiers = await Promise.all(
+        active.map(({userId}) => getCurrentTier(subredditId, userId))
+    );
+
+    return active
+        .map(({recent}, i) => ({
+            userName: (JSON.parse(recent[0]!.member) as Violation).targetUserName,
+            count: recent.length,
+            tier: tiers[i] ?? 0
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+}

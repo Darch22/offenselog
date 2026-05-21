@@ -41,6 +41,13 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/lookup-user"
+      },
+      {
+        "label": "OffenseLog Dashboard",
+        "description": "View top offenders and violation stats for the past 7 days.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/dashboard"
       }
     ]
   },
@@ -48,7 +55,8 @@
     "violationHistory": "/internal/form/violation-history-submit",
     "resetViolations": "/internal/form/reset-violations-submit",
     "lookupInput": "/internal/form/lookup-input-submit",
-    "lookupResult": "/internal/form/lookup-result-submit"
+    "lookupResult": "/internal/form/lookup-result-submit",
+    "dashboard": "/internal/form/dashboard-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",

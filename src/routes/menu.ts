@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { reddit, settings } from '@devvit/web/server';
-import { getViolations, getActiveViolations, getCurrentTier } from '../core/violations';
+import { getViolations, getActiveViolations, getCurrentTier, getTopOffenders } from '../core/violations';
 
 export const menu = new Hono();
 
@@ -104,3 +104,28 @@ menu.post('/lookup-user', async (c) => {
 });
 
 
+menu.post('/dashboard', async (c) => {
+  const subreddit = await reddit.getCurrentSubreddit();
+  const topOffenders = await getTopOffenders(subreddit.id, 7, 10);
+
+  const text = topOffenders.length === 0
+      ? 'No violations recorded in the last 7 days.'
+      : topOffenders.map((u, i) => 
+      `#${i + 1} i/${u.userName} - ${u.count} violations${u.count !== 1 ? 's' : ''} (Tier ${u.tier})`).join('\n');
+
+  return c.json<UiResponse>({
+    showForm: {
+      name: 'dashboard',
+      form: {
+        title: 'OffenseLog Dahsboard',
+        description: 'Top offenders - last 7 days',
+        fields: [{
+          name: 'report',
+          type: 'paragraph',
+          label: 'Top Offenders',
+          defaultValue: text
+        }],
+      },
+    },
+  }, 200);
+});
