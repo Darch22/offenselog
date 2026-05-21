@@ -111,13 +111,13 @@ menu.post('/dashboard', async (c) => {
   const text = topOffenders.length === 0
       ? 'No violations recorded in the last 7 days.'
       : topOffenders.map((u, i) => 
-      `#${i + 1} i/${u.userName} - ${u.count} violations${u.count !== 1 ? 's' : ''} (Tier ${u.tier})`).join('\n');
+      `#${i + 1} u/${u.userName} - ${u.count} violation${u.count !== 1 ? 's' : ''} (Tier ${u.tier})`).join('\n');
 
   return c.json<UiResponse>({
     showForm: {
       name: 'dashboard',
       form: {
-        title: 'OffenseLog Dahsboard',
+        title: 'OffenseLog Dashboard',
         description: 'Top offenders - last 7 days',
         fields: [{
           name: 'report',
