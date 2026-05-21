@@ -174,3 +174,14 @@ export async function updateViolationRule(
     // }
     // return false;
 }
+
+export async function claimEscalation(
+    subredditId: string,
+    userId: string,
+    fromTier: number,
+    toTier: number
+): Promise<boolean> {
+    const key = `esc_claim:${subredditId}:${userId}:${fromTier}->${toTier}`;
+    const result = await redis.set(key, '1', {nx: true});
+    return result !== null;
+}

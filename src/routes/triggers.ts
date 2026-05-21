@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
-import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier, updateViolationRule } from '../core/violations'
-import { checkEscalation } from '../core/escalation';
-import { reddit, settings } from '@devvit/web/server';
+import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier, updateViolationRule, claimEscalation } from '../core/violations'
+import { computeNewTier, applyEscalation } from '../core/escalation';
+import { reddit, settings, redis } from '@devvit/web/server';
 
 
 export const triggers = new Hono();
@@ -45,18 +45,18 @@ triggers.post('/on-mod-action', async (c) => {
 
       const subreddit = await reddit.getSubredditByName(input.subreddit.name);
       const mods = await subreddit.getModerators().all();
-      const isMod = mods.some((mod: any) => mod.username === input.targetUser.name);
 
-      if (isMod) {
+      if (mods.some((mod: any) => mod.username === input.targetUser.name)) {
         return c.json({status: 'success'}, 200);
       }
 
+      
+
       const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
-      const violationId = `${contentId}-${new Date(input.actionedAt).getTime()}`;
 
       const violation: Violation = {
-        id: violationId,
-        contentId: contentId,
+        id: `${contentId}-${new Date(input.actionedAt).getTime()}`,
+        contentId,
         contentType: input.action.includes('link') ? 'post' : 'comment',
         action: input.action,
         rule: '',
@@ -68,7 +68,7 @@ triggers.post('/on-mod-action', async (c) => {
       };
 
       const wasStored = await addViolation(input.subreddit.id, violation)
-      console.log(`Violation ${wasStored ? 'stored' : 'duplicate skipped'}: ${violationId}`);
+      console.log(`Violation ${wasStored ? 'stored' : 'duplicate skipped'}: ${violation.id}`);
 
     }
 
@@ -88,53 +88,87 @@ triggers.post('/on-mod-action', async (c) => {
       console.log(`Rule attached: ${ruleName} to ${contentId}`);
     }
 
-    const decayWindowDays = Number(await settings.get('decayWindowDays')) || 30;
-    const activeViolations = await getActiveViolations(input.targetUser.id, input.subreddit.id, decayWindowDays)
+    const [
+      decayWindowDays,
+      tier1Threshold,
+      tier2Threshold,
+      tier3Threshold,
+      banDuration,
+      warningMessage,
+      banMessage,
+      dryRun,
+    ] = await Promise.all([
+      settings.get('decayWindowDays').then(v => Number(v) || 30),
+      settings.get('tier1Threshold').then(v => Number(v) || 3),
+      settings.get('tier2Threshold').then(v => Number(v) || 5),
+      settings.get('tier3Threshold').then(v => Number(v) || 8),
+      settings.get('tier2BanDuration').then(v => Number(v) || 14),
+      settings.get('warningMessage').then(v => (v as string) || 'You have received multiple content removals. Please review the community rules.'),
+      settings.get('banMessage').then(v => (v as string) || 'You have been banned due to rule violations.'),
+      settings.get('dryRun').then(v => Boolean(v)),
+    ]);
 
-    const currentTier = await getCurrentTier(input.subreddit.id, input.targetUser.id);
+    const [activeViolations, currentTier] = await Promise.all([
+      getActiveViolations(input.targetUser.id, input.subreddit.id, decayWindowDays),
+      getCurrentTier(input.subreddit.id, input.targetUser.id)
+    ]);
 
-    const newTier = await checkEscalation(
-      activeViolations.length,
-      currentTier,
-      input.targetUser.id,
-      input.targetUser.name,
-      input.subreddit.id,
-      input.subreddit.name
-    );
+    const newTier = computeNewTier(activeViolations.length, tier1Threshold, tier2Threshold, tier3Threshold);
 
     if (newTier > currentTier) {
-      await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier);
+      const claimKey = `esc_claim:${input.subreddit.id}:${input.targetUser.id}:${currentTier}->${newTier}`;
+      const claimed = await claimEscalation(input.subreddit.id, input.targetUser.id, currentTier, newTier);
 
-      const banDuration = Number(await settings.get('tier2BanDuration')) || 14;
-      const actionTaken = newTier === 1 ? 'a warning DM' : newTier === 2 ? `a ${banDuration}-day temp ban`: 'a permanent ban'
+      if (claimed) {
+        try {
+          await applyEscalation (
+            newTier,
+            activeViolations.length,
+            input.targetUser.name,
+            input.subreddit.id,
+            input.subreddit.name,
+            banDuration,
+            warningMessage,
+            banMessage,
+            dryRun
+          );
+          await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier);
 
-      try {
-        await reddit.sendPrivateMessage({
-              to: input.moderator.name,
-              subject: `[OffenseLog] Escalation triggered in r/${input.subreddit.name}`,
-              text: `Your removal of ${input.targetUser.name}'s content pushed them to Tier ${newTier}. OffenseLog has issued ${actionTaken}.`
-          });
-      } catch (err) {
-        console.error('Failed to notify acting mod: ', err);
-        
+          if (!dryRun) {
+            const actionTaken = newTier === 1
+              ? 'a warning DM'
+              : newTier === 2 ? `a ${banDuration}-day temp ban` : 'a permanent ban';
+
+            try {
+              await reddit.sendPrivateMessage({
+                to: input.moderator.name,
+                subject: `[OffenseLog] Escalation triggered in r/${input.subreddit.name}`,
+                text: `Your removal of ${input.targetUser.name}'s content pushed them to Tier ${newTier}. OffenseLog has issued ${actionTaken}.`,
+              });
+            } catch (err) {
+              console.error('Failed to notify acting mod: ', err);
+            }
+          }
+        } finally {
+          await redis.del(claimKey)
+        }
+      } else {
+        console.log(`Escalation to Tier ${newTier} fo ${input.targetUser.name} already claimed by concurrent handler`);
       }
     }
 
     if (newTier < currentTier) {
-      const dryRun = Boolean(await settings.get('dryRun'));   
+      await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier);
 
-      await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier)
-      if (newTier === 0) {
-        if(!dryRun) {
-          try {
-            await reddit.sendPrivateMessage({
-              to: input.targetUser.name,
-              subject: `Standing update from r/${input.subreddit.name}`,
-              text: `Hi u/${input.targetUser.name}, your violations in r/${input.subreddit.name} have expired. You are back in good standing.`
-            });
-          } catch (err) {
-            console.error('Failed to send de-escalation DM: ', err);
-          }
+      if (newTier === 0 && !dryRun) {
+        try {
+          await reddit.sendPrivateMessage({
+            to: input.targetUser.name,
+            subject: `Standing update from r/${input.subreddit.name}`,
+            text: `Hi u/${input.targetUser.name}, your violations in r/${input.subreddit.name} have expired. You are back in good standing.`
+          });
+        } catch (err) {
+          console.error('Failed to send de-escalate DM: ', err);
         }
       }
 
@@ -142,19 +176,17 @@ triggers.post('/on-mod-action', async (c) => {
         await reddit.modMail.createModNotification({
           subredditId: input.subreddit.id as `t5_${string}`,
           subject: `[OffenseLog] De-escalation: u/${input.targetUser.name}`,
-          bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation decay.`
+          bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${input.targetUser.name}** droppped from Tier ${currentTier} to Tier ${newTier} after violation decay.`,
         });
-      } catch(err) {
-        console.error('Failed to send de-escalation modmail:', err);
+      } catch (err) {
+        console.error('Failed to send de-escalation modmail: ', err);
       }
     }
 
     console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);
-
-    return c.json({status: 'success'}, 200);
+    return c.json({ status: 'success' }, 200);
   } catch (err) {
     console.error('Error in mod action handler:', err);
-
-    return c.json({status: 'error'}, 200);
+    return c.json({ status: 'error' }, 200);
   }
 });
