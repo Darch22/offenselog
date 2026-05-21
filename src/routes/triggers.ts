@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
 import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier, updateViolationRule, claimEscalation } from '../core/violations'
 import { computeNewTier, applyEscalation } from '../core/escalation';
-import { reddit, settings, redis } from '@devvit/web/server';
+import { reddit, settings } from '@devvit/web/server';
+import {redis} from '@devvit/redis'
 
 
 export const triggers = new Hono();
