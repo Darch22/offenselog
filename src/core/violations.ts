@@ -103,18 +103,6 @@ export async function removeViolation(
     await redis.del(indexKey);
 
     return true;
-
-    // const entries = await redis.zRange(key, 0, -1);
-    
-    // for (const entry of entries) {
-    //     const parsed = JSON.parse(entry.member) as Violation;
-    //     if(parsed.contentId === contentId) {
-    //         await redis.zRem(key, [entry.member]);
-    //         return true;
-    //     }
-    // } 
-
-    // return false;
 }
 
 export async function getCurrentTier(
@@ -155,24 +143,6 @@ export async function updateViolationRule(
     await redis.set(indexKey, newMemberStr);
 
     return true;
-    // const entries = await redis.zRange(key, 0, -1);
-
-    // for (const entry of entries) {
-    //     const parsed = JSON.parse(entry.member) as Violation;
-
-    //     if(parsed.contentId === contentId) {
-    //         await redis.zRem(key, [entry.member]);
-
-    //         parsed.rule = rule;
-
-    //         await redis.zAdd(key, {
-    //             score: parsed.timestamp,
-    //             member: JSON.stringify(parsed)
-    //         });
-    //         return true;
-    //     }
-    // }
-    // return false;
 }
 
 export async function claimEscalation(
