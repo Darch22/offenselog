@@ -254,6 +254,6 @@ forms.post('/backfill-submit', async (c) => {
     }
 
     return c.json<UiResponse>({
-        showToast: `Backfill complete: ${removalsAdded} added, ${approvalsProcessed} approvals, ${rulesAttached} rules, ${affectedUsers} users updated.`
+        showToast: `Backfill complete: ${removalsAdded} added, ${approvalsProcessed} approvals, ${rulesAttached} rules, ${affectedUsers.size} users updated.`
     }, 200);
 });

@@ -200,7 +200,7 @@ triggers.post('/on-mod-action', async (c) => {
           await reddit.modMail.createModNotification({
             subredditId: input.subreddit.id as `t5_${string}`,
             subject: `[OffenseLog] De-escalation: u/${input.targetUser.name}`,
-            bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation decay.`,
+            bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation removal.`,
           });
         } catch (err) {
           console.error('Failed to send de-escalation modmail: ', err);
