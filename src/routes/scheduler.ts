@@ -3,21 +3,25 @@ import {redis} from "@devvit/redis";
 import { settings } from "@devvit/web/server";
 import { reddit } from "@devvit/web/server";
 import type { Violation } from "../core/violations";
+import { parseWhitelist, parseWeights, computeWeightedScore } from "../core/rules";
 
 export const scheduler = new Hono();
 
 scheduler.post('/decay-cleanup-task', async (c) => {
-    const [decayDays, tier1Threshold, tier2Threshold, tier3Threshold, dryRun] = await Promise.all([
+    const [decayDays, tier1Threshold, tier2Threshold, tier3Threshold, dryRun, modmailLevel, whitelistRaw, weightsRaw] = await Promise.all([
         settings.get('decayWindowDays').then(v => Number(v) || 30),
         settings.get('tier1Threshold').then(v => Number(v) || 3),
         settings.get('tier2Threshold').then(v => Number(v) || 5),
         settings.get('tier3Threshold').then(v => Number(v) || 8),
-        settings.get('dryRun').then(v => Boolean(v))
+        settings.get('dryRun').then(v => Boolean(v)),
+        settings.get('modmailLevel').then(v => ((v as string) || 'all').toLowerCase()),
+        settings.get('ruleWhitelist').then(v => (v as string) ?? ''),
+        settings.get('ruleWeights').then(v => (v as string) ?? ''),
     ]);
 
+    const whitelist = parseWhitelist(whitelistRaw);
+    const weights = parseWeights(weightsRaw);
     const cutoff = Date.now() - (decayDays * 24 * 60 * 60 * 1000);
-
-
 
     const subreddit = await reddit.getCurrentSubreddit();
     const activeUsersKey = `active_users:${subreddit.id}`;
@@ -40,43 +44,46 @@ scheduler.post('/decay-cleanup-task', async (c) => {
         }
         await redis.zRemRangeByScore(violationKey, 0, cutoff);
 
-        const remaining = await redis.zCard(violationKey);
+        const remainingEntries = await redis.zRange(violationKey, 0, -1);
+        const remaining = remainingEntries.map(e => JSON.parse(e.member) as Violation);
 
         let newTier = 0;
 
-        if(remaining === 0) {
+        if(remaining.length === 0) {
             await redis.zRem(activeUsersKey, [userId]);
             await redis.set(`tier:${subreddit.id}:${userId}`, '0');
         } else {
-            if (remaining >= tier3Threshold) newTier = 3;
-            else if (remaining >= tier2Threshold) newTier = 2;
-            else if (remaining >= tier1Threshold) newTier = 1;
+            const score = computeWeightedScore(remaining, whitelist, weights);
+            if (score >= tier3Threshold) newTier = 3;
+            else if (score >= tier2Threshold) newTier = 2;
+            else if (score >= tier1Threshold) newTier = 1;
 
             await redis.set(`tier:${subreddit.id}:${userId}`, newTier.toString());
         }
 
         if (newTier < oldTier) {
-            try {
-                await reddit.modMail.createModNotification({
-                    subredditId: subreddit.id as `t5_${string}`,
-                    subject: `[OffenseLog] De-escalation: u/${userName}`,
-                    bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${userName}** dropped from Tier ${oldTier} to Tier ${newTier} after violation decay.`
-                })
-            } catch (err) {
-                console.error('Failed to send decay modmail: ', err);
+            if (modmailLevel === 'all') {
+                try {
+                    await reddit.modMail.createModNotification({
+                        subredditId: subreddit.id as `t5_${string}`,
+                        subject: `[OffenseLog] De-escalation: u/${userName}`,
+                        bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${userName}** dropped from Tier ${oldTier} to Tier ${newTier} after violation decay.`
+                    })
+                } catch (err) {
+                    console.error('Failed to send decay modmail: ', err);
+                }
             }
-        }
 
-        if (newTier === 0 && !dryRun) {
-            try {
-                const sub = await reddit.getCurrentSubreddit();
-                await reddit.sendPrivateMessage({
-                    to: userName,
-                    subject: `Standing update from r/${sub.name}`,
-                    text: `Hi u/${userName}, your violations in r/${sub.name} have expired. You are back in good standing.`
-                })
-            } catch (err) {
-                console.error('Failed to send decay DM: ', err);
+            if (newTier === 0 && !dryRun) {
+                try {
+                    await reddit.sendPrivateMessage({
+                        to: userName,
+                        subject: `Standing update from r/${subreddit.name}`,
+                        text: `Hi u/${userName}, your violations in r/${subreddit.name} have expired. You are back in good standing.`
+                    })
+                } catch (err) {
+                    console.error('Failed to send decay DM: ', err);
+                }
             }
         }
     }

@@ -165,6 +165,18 @@
         "label": "Modmail notification level (all | bans | off)",
         "helpText": "Controls escalation/de-escalation modmail volume. 'all' = every tier change (default). 'bans' = only when a temp ban or perma ban is issued (Tier 2/3). 'off' = no escalation modmail (the acting moderator still gets a DM). Use 'bans' or 'off' on high-volume subs.",
         "defaultValue": "all"
+      },
+      "ruleWhitelist": {
+        "type": "paragraph",
+        "label": "Rule whitelist (one per line)",
+        "helpText": "Rules in this list won't count as violations. Match the rule name exactly as it appears in your removal reasons (case-insensitive). Leave blank to disable.\n\nExample:\nDuplicate post\nWrong flair",
+        "defaultValue": ""
+      },
+      "ruleWeights": {
+        "type": "paragraph",
+        "label": "Rule weights (one per line, format: rule_name: weight)",
+        "helpText": "Override the default weight of 1 for specific rules. Higher = counts more toward escalation. Use 0 to exclude (whitelist also works). Case-insensitive. Format is 'rule name: number'.\n\nExample:\nHarassment: 3\nHate speech: 5\nLow-effort: 0",
+        "defaultValue": ""
       }
     }
   },

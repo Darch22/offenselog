@@ -3,6 +3,7 @@ import { UiResponse } from '@devvit/web/shared';
 import { context, reddit, settings } from '@devvit/web/server';
 import { clearViolations, getActiveViolations, getCurrentTier, getViolations, removeViolation, setCurrentTier, setModNote } from '../core/violations';
 import { computeNewTier } from '../core/escalation';
+import { computeWeightedScore, parseWeights, parseWhitelist } from '../core/rules';
 
 
 
@@ -105,12 +106,17 @@ forms.post('/delete-violation-submit', async (c) => {
     const index = Math.round(values.violationIndex);
     const subredditId = context.subredditId;
 
-    const [decayDays, tier1, tier2, tier3] = await Promise.all([
+    const [decayDays, tier1, tier2, tier3, whitelistRaw, weightsRaw] = await Promise.all([
         settings.get('decayWindowDays').then(v => Number(v) || 30),
         settings.get('tier1Threshold').then(v => Number(v) || 3),
         settings.get('tier2Threshold').then(v => Number(v) || 5),
-        settings.get('tier3Threshold').then(v => Number(v) || 8)
+        settings.get('tier3Threshold').then(v => Number(v) || 8),
+        settings.get('ruleWhitelist').then(v => (v as string) ?? ''),
+        settings.get('ruleWeights').then(v => (v as string) ?? ''),
     ]);
+
+    const whitelist = parseWhitelist(whitelistRaw);
+    const weights = parseWeights(weightsRaw);
 
     const active = await getActiveViolations(values.authorId, subredditId, decayDays);
 
@@ -123,7 +129,8 @@ forms.post('/delete-violation-submit', async (c) => {
     await removeViolation(subredditId, values.authorId, active[index - 1]!.contentId);
 
     const remaining = await getActiveViolations(values.authorId, subredditId, decayDays);
-    const newTier = computeNewTier(remaining.length, tier1, tier2, tier3);
+    const score = computeWeightedScore(remaining, whitelist, weights);
+    const newTier = computeNewTier(score, tier1, tier2, tier3);
     await setCurrentTier(subredditId, values.authorId, newTier);
 
     return c.json<UiResponse>({

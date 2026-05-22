@@ -4,6 +4,7 @@ import { addViolation, Violation, getActiveViolations, removeViolation, getCurre
 import { computeNewTier, applyEscalation } from '../core/escalation';
 import { reddit, settings } from '@devvit/web/server';
 import {redis} from '@devvit/redis'
+import { parseWhitelist, parseWeights, computeWeightedScore } from '../core/rules';
 
 
 export const triggers = new Hono();
@@ -112,7 +113,9 @@ triggers.post('/on-mod-action', async (c) => {
       warningMessage,
       banMessage,
       dryRun,
-      modmailLevel
+      modmailLevel,
+      ruleWhitelist,
+      ruleWeights
     ] = await Promise.all([
       settings.get('decayWindowDays').then(v => Number(v) || 30),
       settings.get('tier1Threshold').then(v => Number(v) || 3),
@@ -122,7 +125,9 @@ triggers.post('/on-mod-action', async (c) => {
       settings.get('warningMessage').then(v => (v as string) || 'You have received multiple content removals. Please review the community rules.'),
       settings.get('banMessage').then(v => (v as string) || 'You have been banned due to rule violations.'),
       settings.get('dryRun').then(v => Boolean(v)),
-      settings.get('modmailLevel').then(v => ((v as string) || 'all').toLowerCase())
+      settings.get('modmailLevel').then(v => ((v as string) || 'all').toLowerCase()),
+      settings.get('ruleWhitelist').then(v => parseWhitelist((v as string) ?? '')),
+      settings.get('ruleWeights').then(v => parseWeights((v as string) ?? '')),
     ]);
 
     const [activeViolations, currentTier] = await Promise.all([
@@ -130,7 +135,8 @@ triggers.post('/on-mod-action', async (c) => {
       getCurrentTier(input.subreddit.id, input.targetUser.id)
     ]);
 
-    const newTier = computeNewTier(activeViolations.length, tier1Threshold, tier2Threshold, tier3Threshold);
+    const score = computeWeightedScore(activeViolations, ruleWhitelist, ruleWeights);
+    const newTier = computeNewTier(score, tier1Threshold, tier2Threshold, tier3Threshold);
 
     if (newTier > currentTier) {
       const claimed = await claimEscalation(input.subreddit.id, input.targetUser.id, currentTier, newTier);
@@ -202,9 +208,9 @@ triggers.post('/on-mod-action', async (c) => {
       }
     }
 
-    console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);
+    console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations (weighted score ${score}), Tier ${newTier}`);
     return c.json({ status: 'success' }, 200);
-    
+
   } catch (err) {
     console.error('Error in mod action handler:', err);
     return c.json({ status: 'error' }, 200);
