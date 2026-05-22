@@ -48,6 +48,34 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/dashboard"
+      },
+      {
+        "label": "Override Tier",
+        "description": "Manually set this user's violation tier.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/tier-override"
+      },
+      {
+        "label": "Override Tier",
+        "description": "Manually set this user's violation tier.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/tier-override"
+      },
+      {
+        "label": "Delete Violation",
+        "description": "Remove a single violation from this user's record.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/delete-violation"
+      },
+      {
+        "label": "Delete Violation",
+        "description": "Remove a single violation from this user's record.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/delete-violation"
       }
     ]
   },
@@ -56,7 +84,9 @@
     "resetViolations": "/internal/form/reset-violations-submit",
     "lookupInput": "/internal/form/lookup-input-submit",
     "lookupResult": "/internal/form/lookup-result-submit",
-    "dashboard": "/internal/form/dashboard-submit"
+    "dashboard": "/internal/form/dashboard-submit",
+    "tierOverride": "/internal/form/tier-override-submit",
+    "deleteViolation": "/internal/form/delete-violation-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",

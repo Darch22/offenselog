@@ -129,3 +129,87 @@ menu.post('/dashboard', async (c) => {
     },
   }, 200);
 });
+
+menu.post('/tier-override', async (c) => {
+  const request = await c.req.json<MenuItemRequest>();
+  const targetId = request.targetId;
+
+  let authorName = '';
+  let authorId = '';
+
+  if (targetId.startsWith('t3_')) {
+    const post = await reddit.getPostById(targetId as `t3_${string}`);
+    authorName = post.authorName;
+    authorId = post.authorId ?? '';
+  } else {
+    const comment = await reddit.getCommentById(targetId as `t1_${string}`);
+    authorName = comment.authorName;
+    authorId = comment.authorId ?? '';
+  }
+
+  const subreddit = await reddit.getCurrentSubreddit();
+  const currentTier = await getCurrentTier(subreddit.id, authorId);
+
+  return c.json<UiResponse>({
+    showForm: {
+      name: 'tierOverride',
+        form: {
+          title: `Override Tier: u/${authorName}`,
+          description: `Current tier: ${currentTier}`,
+          fields: [
+            { name: 'authorId', type: 'string', label: 'User ID', defaultValue: authorId, disabled: true },
+            { name: 'authorName', type: 'string', label: 'Username', defaultValue: authorName, disabled: true },
+            { name: 'newTier', type: 'number', label: 'New tier (0–3)' },
+          ],
+          acceptLabel: 'Override',
+          cancelLabel: 'Cancel',
+      },
+    },
+  }, 200)
+});
+
+
+menu.post('/delete-violation', async (c) => {
+  const request = await c.req.json<MenuItemRequest>();
+  const targetId = request.targetId;
+
+  let authorName = '';
+  let authorId = '';
+
+  if (targetId.startsWith('t3_')) {
+    const post = await reddit.getPostById(targetId as `t3_${string}`);
+    authorName = post.authorName;
+    authorId = post.authorId ?? '';
+  } else {
+    const comment = await reddit.getCommentById(targetId as `t1_${string}`);
+    authorName = comment.authorName;
+    authorId = comment.authorId ?? '';
+  }
+
+  const subreddit = await reddit.getCurrentSubreddit();
+  const decayWindowDays = Number(await settings.get('decayWindowDays')) || 30;
+  const active = await getActiveViolations(authorId, subreddit.id, decayWindowDays);
+
+  const listText = active.length === 0
+    ? 'No active violations.'
+    : active.map((v, i) =>
+        `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | ${v.contentType} | ${v.action}\nRule: ${v.rule || 'None'} | Mod: ${v.modName}`).join('\n\n');
+
+  return c.json<UiResponse>({
+    showForm: {
+      name: 'deleteViolation',
+      form: {
+        title: `Delete Violation: u/${authorName}`,
+        description: `${active.length} active violation${active.length !== 1 ? 's' : ''}`,
+        fields: [
+          { name: 'authorId', type: 'string', label: 'User ID', defaultValue: authorId, disabled: true },
+          { name: 'authorName', type: 'string', label: 'Username', defaultValue: authorName, disabled: true },
+          { name: 'list', type: 'paragraph', label: 'Active Violations', defaultValue: listText },
+          { name: 'violationIndex', type: 'number', label: 'Violation # to delete' },
+        ],
+        acceptLabel: 'Delete',
+        cancelLabel: 'Cancel'
+      },
+    },
+  }, 200);
+});

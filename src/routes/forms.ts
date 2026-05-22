@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { UiResponse } from '@devvit/web/shared';
 import { context, reddit, settings } from '@devvit/web/server';
-import { clearViolations, getActiveViolations, getCurrentTier, getViolations, setCurrentTier } from '../core/violations';
+import { clearViolations, getActiveViolations, getCurrentTier, getViolations, removeViolation, setCurrentTier } from '../core/violations';
+import { computeNewTier } from '../core/escalation';
 
 
 
@@ -82,4 +83,50 @@ forms.post('/lookup-result-submit', async (c) => {
 
 forms.post('/dashboard-submit', async (c) => {
     return c.json<UiResponse>({showToast: ''}, 200);
+});
+
+
+forms.post('/tier-override-submit', async (c) => {
+    const values = await c.req.json<{ authorId: string; authorName: string; newTier: number }>();
+    const tier = Math.round(values.newTier);
+
+    if (isNaN(tier) || tier < 0 || tier > 3) {
+        return c.json<UiResponse>({ showToast: 'Tier must be 0, 1, 2, or 3.' }, 200);
+    }
+    
+    await setCurrentTier(context.subredditId, values.authorId, tier);
+    return c.json<UiResponse>({
+        showToast: `Tier for u/${values.authorName} set to ${tier}.`
+    }, 200);
+});
+
+forms.post('delete-violation-submit', async (c) => {
+    const values = await c.req.json<{ authorId: string; authorName: string; violationIndex: number }>();
+    const index = Math.round(values.violationIndex);
+    const subredditId = context.subredditId;
+
+    const [decayDays, tier1, tier2, tier3] = await Promise.all([
+        settings.get('decayWindowDays').then(v => Number(v) || 30),
+        settings.get('tier1Threshold').then(v => Number(v) || 3),
+        settings.get('tier2Threshold').then(v => Number(v) || 5),
+        settings.get('tier3Threshold').then(v => Number(v) || 8)
+    ]);
+
+    const active = await getActiveViolations(values.authorId, subredditId, decayDays);
+
+    if (isNaN(index) || index < 1 || index > active.length) {
+        return c.json<UiResponse>({
+            showToast: `Enter a number between 1 and ${active.length}.`
+        }, 200);
+    }
+
+    await removeViolation(subredditId, values.authorId, active[index - 1]!.contentId);
+
+    const remaining = await getActiveViolations(values.authorId, subredditId, decayDays);
+    const newTier = computeNewTier(remaining.length, tier1, tier2, tier3);
+    await setCurrentTier(subredditId, values.authorId, newTier);
+
+    return c.json<UiResponse>({
+        showToast: `Violation #${index} deleted. u/${values.authorName} is now Tier ${newTier}.`
+    }, 200);
 });
