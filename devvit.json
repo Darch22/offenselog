@@ -90,6 +90,13 @@
         "location": "comment",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/edit-note"
+      },
+      {
+        "label": "Backfill from Modlog",
+        "description": "Scan past mod actions and import them as violations. Capped at 7 days.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/backfill"
       }
     ]
   },
@@ -101,7 +108,8 @@
     "dashboard": "/internal/form/dashboard-submit",
     "tierOverride": "/internal/form/tier-override-submit",
     "deleteViolation": "/internal/form/delete-violation-submit",
-    "editNote": "/internal/form/edit-note-submit"
+    "editNote": "/internal/form/edit-note-submit",
+    "backfill": "/internal/form/backfill-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",

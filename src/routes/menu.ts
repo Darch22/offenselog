@@ -264,3 +264,20 @@ menu.post('/edit-note', async (c) => {
       },
     }, 200);
 });
+
+menu.post('/backfill', async (c) => {
+  return c.json<UiResponse>({
+    showForm: {
+      name: 'backfill',
+      form: {
+        title: 'Backfill from Modlog',
+        description: 'Scan past mod actions and import them as violations. Existing records are not duplicated. Tiers are updated silently — no DMs or bans are issued for past activity.',
+        fields: [
+          { name: 'days', type: 'number', label: 'Days to scan back (1–7)', defaultValue: 7 }
+        ],
+        acceptLabel: 'Start backfill',
+        cancelLabel: 'Cancel'
+      },
+    },
+  }, 200);
+});
