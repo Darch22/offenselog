@@ -68,7 +68,7 @@ forms.post('/lookup-input-submit', async (c) => {
                         name: 'details',
                         label: 'Recent Violations',
                         type: 'paragraph',
-                        defaultValue: active.length === 0 ? 'No active violations.' : active.map((v, i) => `#${i + 1} — ${new Date(v.timestamp).toLocaleDateString()}\nType: ${v.contentType} Action: ${v.action}\nRule: ${v.rule || 'None'}  Mod: ${v.modName}\nLink: ${v.permalink ? `https://reddit.com${v.permalink}` : '(none stored'}\n`).join('\n')
+                        defaultValue: active.length === 0 ? 'No active violations.' : active.map((v, i) => `#${i + 1} — ${new Date(v.timestamp).toLocaleDateString()}\nType: ${v.contentType} Action: ${v.action}\nRule: ${v.rule || 'None'}  Mod: ${v.modName}\nLink: ${v.permalink ? `https://reddit.com${v.permalink}` : '(none stored)'}\n`).join('\n')
                     }
                 ]
             }
@@ -131,7 +131,7 @@ forms.post('/delete-violation-submit', async (c) => {
     }, 200);
 });
 
-forms.post('edit-note-submit', async (c) => {
+forms.post('/edit-note-submit', async (c) => {
     const values = await c.req.json<{ authorId: string; authorName: string; note: string }>();
     const note = (values.note ?? '').trim();
 
