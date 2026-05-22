@@ -112,6 +112,7 @@ triggers.post('/on-mod-action', async (c) => {
       warningMessage,
       banMessage,
       dryRun,
+      modmailLevel
     ] = await Promise.all([
       settings.get('decayWindowDays').then(v => Number(v) || 30),
       settings.get('tier1Threshold').then(v => Number(v) || 3),
@@ -121,6 +122,7 @@ triggers.post('/on-mod-action', async (c) => {
       settings.get('warningMessage').then(v => (v as string) || 'You have received multiple content removals. Please review the community rules.'),
       settings.get('banMessage').then(v => (v as string) || 'You have been banned due to rule violations.'),
       settings.get('dryRun').then(v => Boolean(v)),
+      settings.get('modmailLevel').then(v => ((v as string) || 'all').toLowerCase())
     ]);
 
     const [activeViolations, currentTier] = await Promise.all([
@@ -144,7 +146,8 @@ triggers.post('/on-mod-action', async (c) => {
             banDuration,
             warningMessage,
             banMessage,
-            dryRun
+            dryRun,
+            modmailLevel
           );
           await setCurrentTier(input.subreddit.id, input.targetUser.id, newTier);
 
@@ -186,19 +189,22 @@ triggers.post('/on-mod-action', async (c) => {
         }
       }
 
-      try {
-        await reddit.modMail.createModNotification({
-          subredditId: input.subreddit.id as `t5_${string}`,
-          subject: `[OffenseLog] De-escalation: u/${input.targetUser.name}`,
-          bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation decay.`,
-        });
-      } catch (err) {
-        console.error('Failed to send de-escalation modmail: ', err);
+      if (modmailLevel === 'all') {
+        try {
+          await reddit.modMail.createModNotification({
+            subredditId: input.subreddit.id as `t5_${string}`,
+            subject: `[OffenseLog] De-escalation: u/${input.targetUser.name}`,
+            bodyMarkdown: `${dryRun ? '**DRY RUN - no action was taken.**\n\n' : ''}**u/${input.targetUser.name}** dropped from Tier ${currentTier} to Tier ${newTier} after violation decay.`,
+          });
+        } catch (err) {
+          console.error('Failed to send de-escalation modmail: ', err);
+        }
       }
     }
 
     console.log(`User ${input.targetUser.name}: ${activeViolations.length} active violations, Tier ${newTier}`);
     return c.json({ status: 'success' }, 200);
+    
   } catch (err) {
     console.error('Error in mod action handler:', err);
     return c.json({ status: 'error' }, 200);

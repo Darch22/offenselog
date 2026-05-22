@@ -159,6 +159,12 @@
         "type": "string",
         "label": "Ban message",
         "defaultValue": "You have been banned due to rule violations."
+      },
+      "modmailLevel" : {
+        "type": "string",
+        "label": "Modmail notification level (all | bans | off)",
+        "helpText": "Controls escalation/de-escalation modmail volume. 'all' = every tier change (default). 'bans' = only when a temp ban or perma ban is issued (Tier 2/3). 'off' = no escalation modmail (the acting moderator still gets a DM). Use 'bans' or 'off' on high-volume subs.",
+        "defaultValue": "all"
       }
     }
   },

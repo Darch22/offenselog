@@ -22,7 +22,8 @@ export async function applyEscalation(
     banDuration: number,
     warningMessage: string,
     banMessage: string,
-    dryRun: boolean
+    dryRun: boolean,
+    modmailLevel: string
 ): Promise<void> {
     if (!dryRun) {
         if (newTier === 1) {
@@ -50,19 +51,23 @@ export async function applyEscalation(
                 }
         } else if (newTier === 3) {
             try {
-                    await reddit.banUser({
-                        username: userName,
-                        subredditName: subredditName,
-                        context: 'Permanent Ban',
-                        message: banMessage,
-                        reason: `Automated: ${activeCount} violations (Tier 3)`,
-                    })
-                } catch(err) {
-                    console.error('Failed to perma ban:', err);
-                }
+                await reddit.banUser({
+                    username: userName,
+                    subredditName: subredditName,
+                    context: 'Permanent Ban',
+                    message: banMessage,
+                    reason: `Automated: ${activeCount} violations (Tier 3)`,
+                })
+            } catch(err) {
+                console.error('Failed to perma ban:', err);
+            }
         }
     }
-    try {
+
+    const shouldNotify = modmailLevel === 'all' || (modmailLevel === 'bans' && newTier >= 2);
+
+    if (shouldNotify) {
+        try {
             await reddit.modMail.createModNotification({
                 subredditId: subredditId as `t5_${string}`,
                 subject: `[OffenseLog${dryRun ? ' DRY RUN' : ''}] Tier ${newTier} escalation: u/${userName}`,
@@ -71,4 +76,6 @@ export async function applyEscalation(
         } catch(err) {
             console.error('Failed to send modmail notification:', err);
         }
+    }
+    
 }
