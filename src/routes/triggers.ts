@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
-import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier, updateViolationRule, claimEscalation } from '../core/violations'
+import { addViolation, Violation, getActiveViolations, removeViolation, getCurrentTier, setCurrentTier, updateViolationRule, claimEscalation, releaseEscalation } from '../core/violations'
 import { computeNewTier, applyEscalation } from '../core/escalation';
 import { reddit, settings } from '@devvit/web/server';
 import {redis} from '@devvit/redis'
@@ -44,14 +44,25 @@ triggers.post('/on-mod-action', async (c) => {
         return c.json({status: 'success'}, 200);
       }
 
-      const subreddit = await reddit.getSubredditByName(input.subreddit.name);
-      const mods = await subreddit.getModerators().all();
+      const cacheKey = `mod_list:${input.subreddit.id}`;
+      let modUsernames: string[];
+      const cached = await redis.get(cacheKey);
 
-      if (mods.some((mod: any) => mod.username === input.targetUser.name)) {
-        return c.json({status: 'success'}, 200);
+      if (cached) {
+        modUsernames = JSON.parse(cached);
+      } else {
+        const subreddit = await reddit.getSubredditByName(input.subreddit.name);
+        const mods = await subreddit.getModerators().all();
+        modUsernames = mods.map((m: any) => m.username);
+
+        await redis.set(cacheKey, JSON.stringify(modUsernames), {
+          expiration: new Date(Date.now() + 60 * 60 * 1000 )
+        });
       }
 
-      
+      if (modUsernames.includes(input.targetUser.name)) {
+        return c.json({status: 'success'}, 200);
+      }
 
       const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
 
@@ -117,7 +128,6 @@ triggers.post('/on-mod-action', async (c) => {
     const newTier = computeNewTier(activeViolations.length, tier1Threshold, tier2Threshold, tier3Threshold);
 
     if (newTier > currentTier) {
-      const claimKey = `esc_claim:${input.subreddit.id}:${input.targetUser.id}:${currentTier}->${newTier}`;
       const claimed = await claimEscalation(input.subreddit.id, input.targetUser.id, currentTier, newTier);
 
       if (claimed) {
@@ -151,7 +161,7 @@ triggers.post('/on-mod-action', async (c) => {
             }
           }
         } finally {
-          await redis.del(claimKey)
+          await releaseEscalation(input.subreddit.id, input.targetUser.id, currentTier, newTier);
         }
       } else {
         console.log(`Escalation to Tier ${newTier} for ${input.targetUser.name} already claimed by concurrent handler`);

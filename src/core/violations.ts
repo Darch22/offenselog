@@ -23,6 +23,7 @@ export async function clearViolations(subredditId: string, userId: string): Prom
         await redis.del(`content_violation:${subredditId}:${parsed.contentId}`);
     }
     await redis.del(`mod_note:${subredditId}:${userId}`);
+    await redis.zRem(`active_users:${subredditId}`, [userId]);
 }
 
 function violationKey(subredditId: string, userId: string) : string {
@@ -103,6 +104,12 @@ export async function removeViolation(
     await redis.zRem(key, [memberStr]);
     await redis.del(indexKey);
 
+    const remaining = await redis.zCard(key);
+
+    if (remaining === 0) {
+        await redis.zRem(`active_users:${subredditId}`, [userId]);
+    }
+
     return true;
 }
 
@@ -155,6 +162,16 @@ export async function claimEscalation(
     const key = `esc_claim:${subredditId}:${userId}:${fromTier}->${toTier}`;
     const result = await redis.set(key, '1', {nx: true});
     return result !== null;
+}
+
+export async function releaseEscalation(
+    subredditId: string,
+    userId: string,
+    fromTier: number,
+    toTier: number
+): Promise<void> {
+    const key = `esc_claim:${subredditId}:${userId}:${fromTier}->${toTier}`;
+    await redis.del(key);
 }
 
 export async function getTopOffenders(
