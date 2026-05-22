@@ -100,7 +100,7 @@ forms.post('/tier-override-submit', async (c) => {
     }, 200);
 });
 
-forms.post('delete-violation-submit', async (c) => {
+forms.post('/delete-violation-submit', async (c) => {
     const values = await c.req.json<{ authorId: string; authorName: string; violationIndex: number }>();
     const index = Math.round(values.violationIndex);
     const subredditId = context.subredditId;

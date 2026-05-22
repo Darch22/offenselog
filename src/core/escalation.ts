@@ -46,8 +46,8 @@ export async function applyEscalation(
                         duration: banDuration
                     })
                 } catch(err) {
-                        console.error('Failed to temp ban:', err);
-                    }
+                    console.error('Failed to temp ban:', err);
+                }
         } else if (newTier === 3) {
             try {
                     await reddit.banUser({
@@ -58,8 +58,8 @@ export async function applyEscalation(
                         reason: `Automated: ${activeCount} violations (Tier 3)`,
                     })
                 } catch(err) {
-                        console.error('Failed to perma ban:', err);
-                    }
+                    console.error('Failed to perma ban:', err);
+                }
         }
     }
     try {

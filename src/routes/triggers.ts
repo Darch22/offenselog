@@ -154,7 +154,7 @@ triggers.post('/on-mod-action', async (c) => {
           await redis.del(claimKey)
         }
       } else {
-        console.log(`Escalation to Tier ${newTier} fo ${input.targetUser.name} already claimed by concurrent handler`);
+        console.log(`Escalation to Tier ${newTier} for ${input.targetUser.name} already claimed by concurrent handler`);
       }
     }
 

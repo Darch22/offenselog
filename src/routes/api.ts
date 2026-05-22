@@ -21,6 +21,7 @@ api.get('/violations', async (c) => {
         getCurrentTier(subredditId, userId)
     ]);
 
-    return c.json({ userId, subredditId, tier, activeCount: active.length, totalCount: all.length, violations: active
-});
+    return c.json({ 
+        userId, subredditId, tier, activeCount: active.length, totalCount: all.length, violations: active
+    });
 });
