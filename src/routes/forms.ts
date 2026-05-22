@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { UiResponse } from '@devvit/web/shared';
 import { context, reddit, settings } from '@devvit/web/server';
-import { clearViolations, getActiveViolations, getCurrentTier, getViolations, removeViolation, setCurrentTier } from '../core/violations';
+import { clearViolations, getActiveViolations, getCurrentTier, getViolations, removeViolation, setCurrentTier, setModNote } from '../core/violations';
 import { computeNewTier } from '../core/escalation';
 
 
@@ -128,5 +128,16 @@ forms.post('delete-violation-submit', async (c) => {
 
     return c.json<UiResponse>({
         showToast: `Violation #${index} deleted. u/${values.authorName} is now Tier ${newTier}.`
+    }, 200);
+});
+
+forms.post('edit-note-submit', async (c) => {
+    const values = await c.req.json<{ authorId: string; authorName: string; note: string }>();
+    const note = (values.note ?? '').trim();
+
+    await setModNote(context.subredditId, values.authorId, note);
+
+    return c.json<UiResponse>({
+        showToast: note ? `Note saved for u/${values.authorName}.` : `Note cleared for u/${values.authorName}.`
     }, 200);
 });

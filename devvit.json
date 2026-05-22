@@ -76,6 +76,20 @@
         "location": "comment",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/delete-violation"
+      },
+      {
+        "label": "Edit Mod Note",
+        "description": "Add or update a sticky note for this user, visible to all moderators.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/edit-note"
+      },
+      {
+        "label": "Edit Mod Note",
+        "description": "Add or update a sticky note for this user, visible to all moderators.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/edit-note"
       }
     ]
   },
@@ -86,7 +100,8 @@
     "lookupResult": "/internal/form/lookup-result-submit",
     "dashboard": "/internal/form/dashboard-submit",
     "tierOverride": "/internal/form/tier-override-submit",
-    "deleteViolation": "/internal/form/delete-violation-submit"
+    "deleteViolation": "/internal/form/delete-violation-submit",
+    "editNote": "/internal/form/edit-note-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",

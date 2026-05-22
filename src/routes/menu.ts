@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { reddit, settings } from '@devvit/web/server';
-import { getViolations, getActiveViolations, getCurrentTier, getTopOffenders } from '../core/violations';
+import { getViolations, getActiveViolations, getCurrentTier, getTopOffenders, getModNote } from '../core/violations';
 
 export const menu = new Hono();
 
@@ -25,10 +25,13 @@ menu.post('/view-violations', async (c) => {
   console.log(`Viewing violations for ${authorName}  (${authorId})`);
   
   const subreddit = await reddit.getCurrentSubreddit();
-  const allViolations = await getViolations(authorId, subreddit.id);
   const decayWindowDays = Number(await settings.get('decayWindowDays')) || 30;
-  const activeViolations = await getActiveViolations(authorId, subreddit.id, decayWindowDays);
-  const tier = await getCurrentTier(subreddit.id, authorId);
+  const [allViolations, activeViolations, tier, note] = await Promise.all([
+    getViolations(authorId, subreddit.id),
+    getActiveViolations(authorId, subreddit.id, decayWindowDays),
+    getCurrentTier(subreddit.id, authorId),
+    getModNote(subreddit.id, authorId)
+  ]);
   
 
   return c.json<UiResponse>(
@@ -43,8 +46,17 @@ menu.post('/view-violations', async (c) => {
               name: 'details',
               label: 'Recent Violations',
               type: 'paragraph',
-              defaultValue: activeViolations.map((v, i) =>
+              defaultValue: activeViolations.length === 0
+                ? 'No active violations.'
+                : activeViolations.map((v, i) =>
                 `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | Type: ${v.contentType} | Action: ${v.action}\nRule: ${v.rule || 'None'}\nMod: ${v.modName}\n`).join('\n')
+            },
+            {
+              name: 'modNote',
+              label: 'Mod Note',
+              type: 'paragraph',
+              defaultValue: note || 'No note.',
+              disabled: true
             },
           ],
         },
@@ -212,4 +224,43 @@ menu.post('/delete-violation', async (c) => {
       },
     },
   }, 200);
+});
+
+
+menu.post('/edit-note', async (c) => {
+    const request = await c.req.json<MenuItemRequest>();
+    const targetId = request.targetId;
+
+    let authorName = '';
+    let authorId = '';
+
+    if (targetId.startsWith('t3_')) {
+      const post = await reddit.getPostById(targetId as `t3_${string}`);
+      authorName = post.authorName;
+      authorId = post.authorId ?? '';
+    } else {
+      const comment = await reddit.getCommentById(targetId as `t1_${string}`);
+      authorName = comment.authorName;
+      authorId = comment.authorId ?? '';
+    }
+
+    const subreddit = await reddit.getCurrentSubreddit();
+    const currentNote = await getModNote(subreddit.id, authorId);
+
+    return c.json<UiResponse>({
+      showForm: {
+        name: 'editNote',
+        form: {
+          title: `Edit Mod Note: u/${authorName}`,
+          description: 'Add or update a sticky note visible to all mods.',
+          fields: [
+            { name: 'authorId', type: 'string', label: 'User ID', defaultValue: authorId, disabled: true },
+            { name: 'authorName', type: 'string', label: 'Username', defaultValue: authorName, disabled: true },
+            { name: 'note', type: 'paragraph', label: 'Note (leave blank to clear)', defaultValue: currentNote },
+          ],
+          acceptLabel: 'Save',
+          cancelLabel: 'Cancel'
+        },
+      },
+    }, 200);
 });

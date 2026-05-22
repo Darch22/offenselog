@@ -22,6 +22,7 @@ export async function clearViolations(subredditId: string, userId: string): Prom
         const parsed = JSON.parse(entry.member) as Violation;
         await redis.del(`content_violation:${subredditId}:${parsed.contentId}`);
     }
+    await redis.del(`mod_note:${subredditId}:${userId}`);
 }
 
 function violationKey(subredditId: string, userId: string) : string {
@@ -192,4 +193,26 @@ export async function getTopOffenders(
         }))
         .sort((a, b) => b.count - a.count)
         .slice(0, limit);
+}
+
+export async function getModNote(
+    subredditId: string,
+    userId: string
+): Promise<string> {
+    const value = await redis.get(`mod_note:${subredditId}:${userId}`);
+    return value ?? '';
+}
+
+export async function setModNote(
+    subredditId: string,
+    userId: string,
+    note: string
+): Promise<void> {
+    const key = `mod_note:${subredditId}:${userId}`;
+
+    if (note.trim()) {
+        await redis.set(key, note);
+    } else {
+        await redis.del(key);
+    }
 }
