@@ -12,6 +12,7 @@ export interface Violation {
     targetUserId: string;
     targetUserName: string;
     timestamp: number;
+    permalink?: string
 }
 
 export async function clearViolations(subredditId: string, userId: string): Promise<void> {

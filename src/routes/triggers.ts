@@ -64,7 +64,9 @@ triggers.post('/on-mod-action', async (c) => {
         return c.json({status: 'success'}, 200);
       }
 
-      const contentId = input.targetPost.id !== "" ? input.targetPost.id : input.targetComment.id;
+      const isPost = input.action.includes('link');
+      const contentId = isPost ? input.targetPost.id : input.targetComment.id;
+      const permalink = isPost ? input.targetPost.permalink : input.targetComment.permalink
 
       const violation: Violation = {
         id: `${contentId}-${new Date(input.actionedAt).getTime()}`,
@@ -76,7 +78,8 @@ triggers.post('/on-mod-action', async (c) => {
         modName: input.moderator.name,
         targetUserId: input.targetUser.id,
         targetUserName: input.targetUser.name,
-        timestamp: new Date(input.actionedAt).getTime()
+        timestamp: new Date(input.actionedAt).getTime(),
+        permalink
       };
 
       const wasStored = await addViolation(input.subreddit.id, violation)

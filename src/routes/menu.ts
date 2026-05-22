@@ -49,7 +49,7 @@ menu.post('/view-violations', async (c) => {
               defaultValue: activeViolations.length === 0
                 ? 'No active violations.'
                 : activeViolations.map((v, i) =>
-                `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | Type: ${v.contentType} | Action: ${v.action}\nRule: ${v.rule || 'None'}\nMod: ${v.modName}\n`).join('\n')
+                `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | Type: ${v.contentType} | Action: ${v.action}\nRule: ${v.rule || 'None'}\nMod: ${v.modName}\nLink: ${v.permalink ? `https://reddit.com${v.permalink}` : '(none stored'}\n`).join('\n')
             },
             {
               name: 'modNote',
@@ -205,7 +205,7 @@ menu.post('/delete-violation', async (c) => {
   const listText = active.length === 0
     ? 'No active violations.'
     : active.map((v, i) =>
-        `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | ${v.contentType} | ${v.action}\nRule: ${v.rule || 'None'} | Mod: ${v.modName}`).join('\n\n');
+        `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | ${v.contentType} | ${v.action}\nRule: ${v.rule || 'None'} | Mod: ${v.modName}\nLink: ${v.permalink ? `https://reddit.com${v.permalink}` : '(none stored'}\n`).join('\n\n');
 
   return c.json<UiResponse>({
     showForm: {
