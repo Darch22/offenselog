@@ -21,7 +21,21 @@ triggers.post('/on-app-install', async (c) => {
       await reddit.modMail.createModNotification({
         subredditId: subredditId as `t5_${string}`,
         subject: `[OffenseLog] Installed in r/${subredditName}`,
-        bodyMarkdown: `OffenseLog is now active in this subreddit. It tracks moderator removals per user and runs a 3-tier escalation engine (warn → temp ban → perma ban) with automatic decay after a configurable window.\n\n**Recommended first step: enable Dry run mode.**\nGo to *Subreddit Settings → Apps → OffenseLog* and turn on **Dry run mode**. This lets OffenseLog log violations and compute tiers without sending any DMs or bans. You'll see [DRY RUN] modmail notifications showing what the system would have done. Review for a week, tune thresholds, then disable dry-run to go live.\n\n**Defaults:**\n- Tier 1 (warning DM): 3 violations\n- Tier 2 (temp ban, 14 days): 5 violations\n- Tier 3 (permanent ban): 8 violations\n- Violations decay after 30 days\n\n**Moderator tools:**\n- Click mod actions on any post or comment → "View Violation History" or "Reset Violation History"\n- Subreddit menu → "Lookup User Violations" (search by username)\n\nConfigure thresholds, decay window, ban duration, and message templates in Subreddit Settings → Apps → OffenseLog.`});
+        bodyMarkdown: `**OffenseLog is now active in r/${subredditName}.**\n\nOffenseLog tracks moderator removals per user
+        and runs a 3-tier escalation engine (warning DM → temp ban → permanent ban) with automatic
+        decay.\n\n---\n\n**Quick-start (3 steps)**\n\n1. **Enable dry-run mode** — Settings → Apps → OffenseLog → *Dry run
+        mode*. Logs violations and computes tiers without sending DMs or bans. Modmail still fires with a [DRY RUN] prefix.
+        Recommended for the first week.\n\n2. **Backfill recent history** — Subreddit menu → *Backfill from Modlog*. Imports
+        the last 7 days of removals so existing repeat offenders don't start from zero.\n\n3. **Open the dashboard** —
+        Subreddit menu → *OffenseLog Dashboard*. Top offenders in the last 7 days with their current tier.\n\n---\n\n**Default
+        thresholds**\n- Tier 1 (warning DM): 3 violations\n- Tier 2 (14-day temp ban): 5 violations\n- Tier 3 (permanent
+        ban): 8 violations\n- Violations decay after 30 days\n\n---\n\n**Moderator menu items**\n\nOn posts and comments:\n-
+        View Violation History, Reset Violation History\n- Override Tier, Delete Violation\n- Edit Mod Note\n\nOn the
+        subreddit menu:\n- Lookup User Violations, OffenseLog Dashboard, Backfill from Modlog\n\n---\n\n**Advanced
+        configuration** (Settings → Apps → OffenseLog)\n- Rule whitelist — rules that don't count (e.g. "Wrong flair")\n- Rule
+        weights — count specific rules more (e.g. "Harassment: 3")\n- Modmail notification level — \`all\` | \`bans\` |
+        \`off\` for high-volume subs\n- Custom DM templates for warnings and bans\n\n---\n\nAfter 7 days of dry-run review,
+        disable *Dry run mode* to start enforcement.`});
     }
   } catch (err) {
     console.error('Failed to send welcome modmail:', err);
