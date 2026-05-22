@@ -54,7 +54,7 @@ triggers.post('/on-mod-action', async (c) => {
       } else {
         const subreddit = await reddit.getSubredditByName(input.subreddit.name);
         const mods = await subreddit.getModerators().all();
-        modUsernames = mods.map((m: any) => m.username);
+        modUsernames = mods.map((m: {username: string}) => m.username);
 
         await redis.set(cacheKey, JSON.stringify(modUsernames), {
           expiration: new Date(Date.now() + 60 * 60 * 1000 )

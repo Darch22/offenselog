@@ -5,6 +5,17 @@ import { clearViolations, getActiveViolations, getCurrentTier, getViolations, re
 import { computeNewTier } from '../core/escalation';
 import { computeWeightedScore, parseWeights, parseWhitelist } from '../core/rules';
 
+interface ModLogAction {
+    createdAt?: Date | number | string;
+    type?: string;
+    action?: string;
+    targetPost?: { id?: string; permalink?: string };
+    targetComment?: { id?: string; permalink?: string };
+    targetUser?: { id?: string; name?: string };
+    moderator?: { id?: string; name?: string };
+    description?: string;
+}
+
 
 
 export const forms = new Hono();
@@ -169,7 +180,7 @@ forms.post('/backfill-submit', async (c) => {
     const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
 
     const mods = await subreddit.getModerators().all();
-    const modNames = new Set(mods.map((m: any) => m.username));
+    const modNames = new Set(mods.map((m: {username: string}) => m.username));
 
     const log = await reddit.getModerationLog({
         subredditName: subreddit.name,
@@ -181,20 +192,23 @@ forms.post('/backfill-submit', async (c) => {
     let rulesAttached = 0;
     const affectedUsers = new Set<string>();
 
-    for (const action of log) {
-        const createdMs = (action as any).createdAt instanceof Date ? (action as any).createdAt.getTime() : Number((action as any).createdAt);
+    for (const entry of log) {
+        const action = entry as ModLogAction;
+        const createdMs = action.createdAt instanceof Date
+            ? action.createdAt.getTime()
+            : Number(action.createdAt ?? 0);
 
         if (createdMs < cutoffMs) break;
 
-        const actionType = (action as any).type ?? (action as any).action ?? '';
-        const targetPostId = (action as any).targetPost?.id ?? '';
-        const targetCommentId = (action as any).targetComment?.id ?? '';
-        const targetUserId = (action as any).targetUser?.id ?? '';
-        const targetUserName = (action as any).targetUser?.name ?? '';
-        const targetPermalink = (action as any).targetPost?.permalink ?? (action as any).targetComment?.permalink ?? '';
+        const actionType = action.type ?? action.action ?? '';
+        const targetPostId = action.targetPost?.id ?? '';
+        const targetCommentId = action.targetComment?.id ?? '';
+        const targetUserId = action.targetUser?.id ?? '';
+        const targetUserName = action.targetUser?.name ?? '';
+        const targetPermalink = action.targetPost?.permalink ?? action.targetComment?.permalink ?? '';
 
-        const modName = (action as any).moderator?.name ?? '';
-        const modId = (action as any).moderator?.id ?? '';
+        const modName = action.moderator?.name ?? '';
+        const modId = action.moderator?.id ?? '';
 
         if (modName === 'AutoModerator') continue;
 
@@ -237,7 +251,7 @@ forms.post('/backfill-submit', async (c) => {
 
             if (!contentId || !targetUserId) continue;
 
-            const ruleName = (action as any).description ?? '';
+            const ruleName = action.description ?? '';
 
             if (await updateViolationRule(subreddit.id, targetUserId, contentId, ruleName)) {
                 rulesAttached++;
