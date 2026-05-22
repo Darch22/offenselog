@@ -1,160 +1,254 @@
 # OffenseLog
 
-A Reddit moderation tool built with Devvit that automatically tracks user rule violations and enforces a configurable tiered escalation system — warning, temp banning, and permanently banning users as their violations accumulate.
+> Automatic violation tracking and tiered escalation for Reddit moderators. Built on Devvit for Reddit's [Mod Tools Migration hackathon](https://mod-tools-migration.devpost.com/) — replacing the parts of Toolbox and RES that moderators miss most on the new Reddit.
 
-## What It Does
+OffenseLog watches mod actions in real time, logs every removal against the user, and automatically escalates through a configurable three-tier system: warning DM → temp ban → permanent ban. Violations decay after a configurable window, so a single bad day doesn't follow someone forever. Everything is per-subreddit configurable, and a dry-run mode lets you preview behavior for a week before going live.
 
-OffenseLog listens for mod actions in real time. Every time a moderator removes a post or comment, the violation is logged against that user. As violations stack up within a configurable time window, the app automatically escalates consequences: a warning DM, then a temporary ban, then a permanent ban. When violations decay past the window or content is re-approved, the user's standing is updated accordingly.
+## Demo
 
-Moderators never have to count violations manually or remember who got warned last month, a subreddit with 10 removals/week would otherwise require mods to track 520 violations/year
-manually.
+### Top Offenders Dashboard
+![Dashboard showing top 10 offenders this week](docs/dashboard.png)
+
+### Violation History
+![Violation history view with rules, dates, and permalinks](docs/history.png)
+
+### Per-rule Weighting
+![Settings panel showing rule whitelist and rule weights](docs/settings.png)
+
+### Modmail Escalation Notification
+![Modmail notification when a user is escalated](docs/modmail.png)
+
+## Why OffenseLog
+
+Most active subreddits on the new Reddit have lost Toolbox and RES — and with them, the basic ability to track who's been warned, who's been removed how many times, and who's been sliding for months. A subreddit with 10 removals per week translates to 520 violations to track per year, by hand. OffenseLog handles this automatically and adds capabilities the old tools never had: per-rule weighting, automatic escalation, dry-run preview, and rule whitelisting.
+
+## Toolbox Migration Mapping
+
+If you're coming from Toolbox or RES, here's how features map:
+
+| Toolbox / RES feature | OffenseLog equivalent |
+|---|---|
+| Usernotes (sticky notes on users) | **Edit Mod Note** — accessible from any post or comment, surfaced in violation history |
+| Removal reasons + history | **View Violation History** — every removal logged with rule, mod, timestamp, direct permalink |
+| User search by username | **Lookup User Violations** — subreddit menu, no post/comment needed |
+| Manual offense counting | **Automatic tier tracking** with three configurable thresholds |
+| Modmail context on bans | **Auto-modmail** on every escalation with active count + tier + action taken |
+| Custom button DMs | **Configurable warning + ban DM templates** in subreddit settings |
+| Modlog grep for repeat offenders | **OffenseLog Dashboard** — top 10 offenders this week, with current tier |
+| Manual cleanup of old removals | **Automatic decay** after a configurable window |
+| *(no equivalent)* | **Per-rule whitelisting + weighting** — count harassment 3×, ignore "wrong flair" |
+| *(no equivalent)* | **Backfill from modlog** — import your last 7 days on install |
+| *(no equivalent)* | **Dry-run mode** — preview a week of behavior before enforcement |
 
 ## Features
 
-- **Automatic Violation Logging**: Captures `remove`, `spam` mod actions on posts and comments the moment they happen
-- **Re-approval Handling**: Approving previously removed content automatically removes that violation from the user's record
-- **Rule Association**: When a removal reason is attached to content, it's stored alongside the violation for context
-- **Tiered Escalation**:
-  - **Tier 1** — Warning DM sent to the user
-  - **Tier 2** — Temporary ban (configurable duration)
-  - **Tier 3** — Permanent ban
-- **De-escalation**: Tier is recalculated on every mod action; if active violations drop, the tier drops with them
-- **Modmail Notifications**: A modmail notification is posted to the mod team on every tier escalation
-- **AutoModerator Ignored**: Actions taken by AutoModerator are never logged
-- **Mod-on-Mod Protection**: Actions against fellow moderators are never logged
-- **Violation History Menu**: Click Mod actions on any post or comment to view that user's current tier, active violation count, and total violation history
-- **Manual Reset**: Moderators can wipe a user's entire violation record and reset their tier to 0 from the same context menu
-- **Violation Decay**: Violations older than the configured window are automatically excluded from tier calculations
-- **Daily Cleanup**: A scheduled task runs every night at 4 AM to prune expired violations from storage
-- **User Lookup**: Search any user's violation history by username from the subreddit menu — no post or comment needed
+### Tracking & Escalation
+- **Real-time violation logging** — `remove*` and `spam*` mod actions captured the moment they happen
+- **Three-tier escalation** — warning DM (Tier 1) → temp ban (Tier 2) → permanent ban (Tier 3), all thresholds configurable
+- **Per-rule weighting** — assign weights to specific rules ("Harassment: 3") or whitelist rules that shouldn't count at all
+- **Race-condition-safe** — concurrent mod actions on the same user can't double-escalate (Redis SETNX lock with try/finally release)
+- **AutoModerator & mod-on-mod ignored** — only human-on-user actions count
+- **Acting-mod DM** — the mod who triggered an escalation gets a private DM summarizing what action was taken
 
-## Tech Stack
+### Decay & Cleanup
+- **Time-based decay** — violations older than the configurable window are excluded from tier calculations
+- **De-escalation** — when violations age out and a user drops a tier, they get a "back in good standing" DM
+- **Daily cron cleanup** — scheduled task prunes expired violations and content-index keys every night at 4 AM
+- **Auto-cleanup on re-approval** — approving a removed post automatically deletes its violation
 
-- [Devvit](https://developers.reddit.com/): Reddit's platform for building and deploying apps
-- [Hono](https://hono.dev/): Lightweight web framework for routing internal endpoints
-- [Vite](https://vite.dev/): Build tool for the server bundle
-- [TypeScript](https://www.typescriptlang.org/): Type-safe development
-- [Redis](https://developers.reddit.com/docs/redis): Sorted set storage for time-ordered violation records
+### Operator Controls
+- **Dry-run mode** — log violations and compute tiers without sending any DMs or bans; modmail notifications still fire prefixed with `[DRY RUN]`
+- **Modmail volume control** — `all` (every tier change) / `bans` (Tier 2/3 only) / `off` (no escalation modmail)
+- **Manual tier override** — set any user's tier directly from a context menu
+- **Per-violation deletion** — remove a single violation from a user's record (recalculates tier automatically)
+- **Manual reset** — wipe a user's entire violation history with a confirmation form
 
-## Getting Started
+### Visibility
+- **Top offenders dashboard** — top 10 users by violations in the last 7 days, with their current tier
+- **Full violation history per user** — date, type, action, rule, acting mod, and direct permalink to the removed content
+- **Mod notes** — sticky notes on any user, visible to all mods in the violation history view
+- **User lookup** — search any user by name from the subreddit menu, no post or comment needed
+- **Welcome modmail on install** — full feature tour + recommended onboarding flow
 
-1. **Clone the repository**
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-3. **Configure your app** in `devvit.json`:
-   - Update the `name` field to your app name
-   - Set your `dev.subreddit` to your development subreddit
-4. **Log in to Devvit**:
-   ```bash
-   npm run login
-   ```
-5. **Start playtesting**:
-   ```bash
-   npm run dev
-   ```
-6. **Test in your development subreddit** — remove a post or comment and watch the violation get logged
+### Adoption
+- **Backfill from modlog** — import the last 7 days of removals so existing repeat offenders don't start at zero
+- **Silent backfill** — imported violations update tier but never trigger DMs or bans for past activity
+- **Rule-attach tracking** — when a mod adds a removal reason after a removal, it's auto-attached to the matching violation
 
-## Project Structure
+## Quick Start
 
+```bash
+git clone https://github.com/Darch22/offenselog.git
+cd offenselog
+npm install
+npm run login
+npm run dev
 ```
-src/
-├── index.ts                        # App entry point; mounts all route groups
-├── core/
-│   ├── violations.ts               # Redis CRUD for violation records and tier state
-│   └── escalation.ts               # Tier threshold checks and enforcement actions
-└── routes/
-    ├── api.ts                      # Public API endpoints (extendable)
-    ├── forms.ts                    # Form submission handlers (view history, reset)
-    ├── menu.ts                     # Context menu handlers (view/reset violations, user lookup)
-    ├── scheduler.ts                # Nightly decay cleanup task
-    └── triggers.ts                 # onAppInstall and onModAction event handlers
-```
+
+Then in your dev subreddit:
+
+1. **Enable dry-run mode** in Subreddit Settings → Apps → OffenseLog → *Dry run mode*. Recommended for the first week.
+2. **Backfill the last 7 days** from Subreddit menu → *Backfill from Modlog*.
+3. **Open the dashboard** from Subreddit menu → *OffenseLog Dashboard* to confirm violations are being tracked.
+4. After a week of dry-run review, disable dry-run to start enforcement.
 
 ## Configuration
 
-First install? Turn on Dry run mode in subreddit settings before you do anything else. OffenseLog will log
-violations and compute tiers, but will not send DMs or issue bans. You'll get modmail notifications labeled
-[DRY RUN] showing what the system would have done. After a week, review the logs, tune your thresholds, then
-turn dry-run off.
+All settings live under Subreddit Settings → Apps → OffenseLog:
 
-All settings are configurable per-subreddit from the app's settings page after installation:
-
-| Setting | Label | Default | Description |
+| Setting | Type | Default | Description |
 |---|---|---|---|
-| `tier1Threshold` | Tier 1 threshold (warning) | `3` | Active violations needed to trigger a warning DM |
-| `tier2Threshold` | Tier 2 threshold (temp ban) | `5` | Active violations needed to trigger a temp ban |
-| `tier3Threshold` | Tier 3 threshold (perma ban) | `8` | Active violations needed to trigger a permanent ban |
-| `decayWindowDays` | Violation decay window (days) | `30` | How many days back to count violations as "active" |
-| `tier2BanDuration` | Tier 2 temp ban duration (days) | `14` | Length of the temporary ban at Tier 2 |
-| `warningMessage` | Warning DM message | *(see devvit.json)* | Message body sent to the user at Tier 1 |
-| `banMessage` | Ban message | *(see devvit.json)* | Message body included in the ban at Tier 2/3 |
+| Dry run mode | boolean | `false` | Log violations + compute tiers but send no DMs or bans. Recommended for week 1. |
+| Tier 1 threshold | number | `3` | Weighted score needed to trigger a warning DM |
+| Tier 2 threshold | number | `5` | Weighted score needed to trigger a temp ban |
+| Tier 3 threshold | number | `8` | Weighted score needed to trigger a permanent ban |
+| Decay window (days) | number | `30` | How far back violations are counted as active |
+| Tier 2 ban duration (days) | number | `14` | Length of the Tier 2 temporary ban |
+| Warning DM message | string | *(default)* | Body of the Tier 1 warning DM |
+| Ban message | string | *(default)* | Body of the Tier 2/3 ban message |
+| Modmail level | string | `all` | Modmail volume: `all` / `bans` / `off` |
+| Rule whitelist | paragraph | empty | Rules that don't count (one per line, case-insensitive) |
+| Rule weights | paragraph | empty | Format: `rule name: number` per line, case-insensitive |
+
+### Rule weighting example
+
+In *Rule whitelist*:
+```
+Wrong flair
+Duplicate post
+```
+
+In *Rule weights*:
+```
+Harassment: 3
+Hate speech: 5
+Off-topic: 0
+```
+
+With these settings, two Harassment removals (2 × 3 = 6) push a user straight to Tier 2 without needing 5 separate violations. Wrong-flair and duplicate-post removals are tracked but never escalate.
+
+## Architecture
+
+```
+src/
+├── index.ts                    # App entry; mounts route groups
+├── core/
+│   ├── violations.ts           # Redis CRUD for violation records, tier state, mod notes
+│   ├── escalation.ts           # Tier threshold check + DM/ban dispatch
+│   └── rules.ts                # Whitelist + weight parsing, weighted scoring
+└── routes/
+    ├── forms.ts                # Form submission handlers
+    ├── menu.ts                 # Context menu handlers
+    ├── scheduler.ts            # Nightly decay cleanup
+    └── triggers.ts             # onAppInstall + onModAction event handlers
+
+tests/
+├── rules.test.ts               # Whitelist / weight / scoring
+├── escalation.test.ts          # Tier threshold transitions
+├── integration.test.ts         # End-to-end scenarios combining rules + escalation
+└── violations.test.ts          # Redis-mocked addViolation logic
+```
 
 ## How It Works
 
-### Violation Tracking
+### Violation lifecycle
 
-Every mod action triggers the `onModAction` handler. When the action is a removal (`removelink`, `removecomment`, `spamlink`, `spamcomment`), OffenseLog records a `Violation` object in Redis as a sorted set entry, scored by timestamp. This enables efficient time-range queries for the decay window.
+1. A mod removes a post or comment. The `onModAction` trigger fires.
+2. OffenseLog filters out AutoModerator and mod-on-mod actions (mod list is cached for 1 hour to avoid hammering Reddit's API), then records a `Violation` in Redis as a sorted-set entry scored by timestamp.
+3. A separate `addremovalreason` event later attaches the rule name to the matching violation.
+4. After each mod action, OffenseLog recomputes the user's weighted score from active (non-decayed) violations and determines their new tier.
 
-A 5-second deduplication window prevents the same piece of content from being logged twice in quick succession.
+### Weighted scoring
 
-### Tier Calculation
+Each active violation contributes a weight to the user's score:
+- Whitelisted rule → 0
+- Configured weighted rule → user-specified weight
+- Empty rule (not yet attached) or unconfigured rule → 1 (default)
 
-After every mod action, the number of active violations (those within the decay window) is counted. The result is compared against the configured thresholds:
+Total score is compared against the three tier thresholds.
 
-```
-activeCount >= tier3Threshold  →  Tier 3 (permanent ban)
-activeCount >= tier2Threshold  →  Tier 2 (temp ban)
-activeCount >= tier1Threshold  →  Tier 1 (warning DM)
-activeCount < tier1Threshold   →  Tier 0 (no action)
-```
+### Escalation
 
-Escalation only fires when the new tier is **higher** than the user's current stored tier. De-escalation (tier dropping) is tracked silently — no action is taken on the user, but the stored tier is updated so future escalations trigger correctly.
+When a user's new tier is *higher* than their stored tier, OffenseLog:
+1. Atomically claims an escalation lock for that user (`SET NX`) to prevent concurrent handlers from double-escalating
+2. Sends the appropriate Tier 1 / 2 / 3 action (DM, temp ban, or perma ban)
+3. Notifies the acting mod via DM with a summary
+4. Posts a modmail notification (gated by the `modmailLevel` setting)
+5. Releases the lock in a `finally` block
 
-A modmail notification is sent to the mod team on every escalation event.
+### De-escalation
 
-### Re-approval
+When active violations drop and the new tier is *lower* than the stored tier — either via approval or via decay — the stored tier is updated. If the user falls to Tier 0, they get a "back in good standing" DM. Modmail notification is gated by `modmailLevel === 'all'`.
 
-If a moderator approves content that previously triggered a violation (`approvelink`, `approvecomment`), that violation is removed from the user's record and the tier is recalculated immediately.
+### Backfill
 
-### Removal Reason Attachment
+The Backfill menu item iterates the last N days (capped at 7) of modlog entries, filters to removal/approval/addremovalreason actions, and dedups against existing records using a content-id index. After all entries are processed, each affected user's tier is recomputed silently — no DMs or bans fire for past activity.
 
-When a mod adds a removal reason to content (`addremovalreason`), OffenseLog finds the matching violation record and updates its `rule` field so the history view shows which rule was broken.
+### Dry-run
 
-### Decay Cleanup
+When dry-run is on:
+- Redis state still gets written (violations logged, tiers tracked)
+- No DMs sent, no bans issued, no user-facing good-standing DMs
+- Modmail notifications still fire, prefixed with `[DRY RUN]`
+- Lets mods preview a week of behavior, tune thresholds, then go live
 
-A scheduled cron task runs daily at 4:00 AM. It iterates all users who have ever had a violation in the subreddit and removes any violation entries older than the configured `decayWindowDays`. Users with no remaining violations are removed from the active-users index and their tier is reset to 0.
+## Moderator Tools
 
-### Context Menu
+### Context menu on posts and comments
+- **View Violation History** — full record + rule notes + permalinks + mod note
+- **Reset Violation History** — wipe a user with confirmation
+- **Override Tier** — manually set a user's tier (0–3)
+- **Delete Violation** — remove one violation; tier recalculates automatically
+- **Edit Mod Note** — sticky note visible to all mods
 
-Moderators see two items on every post and comment, plus one item on the subreddit menu:
+### Subreddit menu
+- **OffenseLog Dashboard** — top 10 offenders this week
+- **Lookup User Violations** — search any user by name
+- **Backfill from Modlog** — import past mod actions (one-time, capped at 7 days)
 
-- **View Violation History** — Opens a read-only form showing the user's current tier, active violation count, total violation count, and a list of recent violations with content type, action, rule, date, and acting moderator.
-- **Reset Violation History** — Opens a confirmation form. On accept, all violations are deleted from Redis and the user's tier is set back to 0.
- - **Lookup User Violations** — Available from the subreddit menu. Opens a username input form; returns the same history view as above for any user, without needing an existing post or comment from them. 
+## Tech Stack
+
+- [Devvit](https://developers.reddit.com/) — Reddit's platform for building moderation apps
+- [Hono](https://hono.dev/) — Lightweight HTTP router for internal endpoints
+- [Redis](https://developers.reddit.com/docs/redis) — Sorted sets for time-ordered violation storage
+- [Vite](https://vite.dev/) — Server bundle build
+- [Vitest](https://vitest.dev/) — Unit and integration testing
+- [TypeScript](https://www.typescriptlang.org/) — Strict mode throughout
 
 ## Commands
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Starts Devvit playtest mode with live reload on your test subreddit |
-| `npm run build` | Builds the app for production |
-| `npm run deploy` | Type-checks, lints, tests, and uploads a new version to Reddit |
-| `npm run launch` | Deploys and submits the app for Reddit's public app review |
-| `npm run login` | Authenticates the Devvit CLI with your Reddit account |
-| `npm run type-check` | Runs TypeScript compilation |
-| `npm run lint` | Runs ESLint across all source files |
-| `npm run test` | Runs the Vitest test suite |
+| `npm run dev` | Starts Devvit playtest with live reload |
+| `npm run build` | Builds the production server bundle |
+| `npm test` | Runs the Vitest test suite |
+| `npm run type-check` | TypeScript compilation check |
+| `npm run lint` | ESLint over `src/` |
+| `npm run deploy` | type-check + lint + test + upload to Reddit |
+| `npm run launch` | Deploy and submit for Reddit's public app review |
 
-## Deployment
+## Testing
 
-1. Test thoroughly in your development subreddit using `npm run dev`
-2. Run `npm run deploy` to upload a new version
-3. Install the app on your target subreddit from the Devvit app directory
-4. Configure thresholds and decay window from the subreddit's app settings page
-5. Run `npm run launch` when ready to submit for Reddit's public app review
+```bash
+npm test
+```
+
+The test suite covers the escalation brain end-to-end:
+- **`rules.test.ts`** — whitelist parsing, weight parsing, scoring edge cases
+- **`escalation.test.ts`** — tier threshold transitions, including decimal weights from per-rule scoring
+- **`integration.test.ts`** — scenarios combining rules + escalation, e.g. "two harassment violations weighted 3 jump straight to Tier 2"
+- **`violations.test.ts`** — `addViolation` dedup logic with mocked Redis
 
 ## Permissions
 
-The app requires `reddit: true` to access Reddit's API (ban users, send DMs, post modmail, read posts and comments). All menu items are restricted to the `moderator` user type.
+OffenseLog requires `reddit: true` for:
+- Sending warning DMs
+- Issuing temp and permanent bans
+- Posting modmail notifications
+- Reading posts, comments, and the modlog (for context + backfill)
+
+All menu items are restricted to the `moderator` user type. Settings are subreddit-scoped.
+
+## License
+
+BSD-3-Clause. See [LICENSE](LICENSE).
