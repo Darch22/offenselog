@@ -10,7 +10,7 @@ OffenseLog watches mod actions in real time, logs every removal against the user
 ![Dashboard showing top 10 offenders this week](docs/dashboard.png)
 
 ### Violation History
-![Violation history view with rules, dates, and permalinks](docs/history.png)
+![Violation history view with rules, dates](docs/history.png)
 
 ### Per-rule Weighting
 ![Settings panel showing rule whitelist and rule weights](docs/settings.png)
@@ -195,7 +195,7 @@ When dry-run is on:
 ## Moderator Tools
 
 ### Context menu on posts and comments
-- **View Violation History** — full record + rule notes + permalinks + mod note
+- **View Violation History** — full record + rule notes + mod note
 - **Reset Violation History** — wipe a user with confirmation
 - **Override Tier** — manually set a user's tier (0–3)
 - **Delete Violation** — remove one violation; tier recalculates automatically
