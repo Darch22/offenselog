@@ -7,16 +7,16 @@ OffenseLog watches mod actions in real time, logs every removal against the user
 ## Demo
 
 ### Top Offenders Dashboard
-![Dashboard showing top 10 offenders this week](docs/dashboard.png)
+![Dashboard showing top 10 offenders this week](https://raw.githubusercontent.com/Darch22/offenselog/main/docs/dashboard.png)
 
 ### Violation History
-![Violation history view with rules, dates](docs/history.png)
+![Violation history view with rules, dates](https://raw.githubusercontent.com/Darch22/offenselog/main/docs/history.png)
 
 ### Per-rule Weighting
-![Settings panel showing rule whitelist and rule weights](docs/settings.png)
+![Settings panel showing rule whitelist and rule weights](https://raw.githubusercontent.com/Darch22/offenselog/main/docs/settings.png)
 
 ### Modmail Escalation Notification
-![Modmail notification when a user is escalated](docs/modmail.png)
+![Modmail notification when a user is escalated](https://raw.githubusercontent.com/Darch22/offenselog/main/docs/modmail.png)
 
 ## Why OffenseLog
 
