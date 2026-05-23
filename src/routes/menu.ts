@@ -42,22 +42,16 @@ menu.post('/view-violations', async (c) => {
           title: `Violation History: u/${authorName}`,
           description: `Tier: ${tier} | Active: ${activeViolations.length} | Total: ${allViolations.length}`,
           fields: [
-            {
-              name: 'details',
-              label: 'Recent Violations',
-              type: 'paragraph',
-              defaultValue: activeViolations.length === 0
-                ? 'No active violations.'
-                : activeViolations.map((v, i) =>
-                `#${i + 1} - ${new Date(v.timestamp).toLocaleDateString()} | Type: ${v.contentType} | Action: ${v.action}\nRule: ${v.rule || 'None'}\nMod: ${v.modName}\nLink: ${v.permalink ? `https://reddit.com${v.permalink}` : '(none stored)'}\n`).join('\n')
-            },
-            {
-              name: 'modNote',
-              label: 'Mod Note',
-              type: 'paragraph',
-              defaultValue: note || 'No note.',
-              disabled: true
-            },
+              ...(activeViolations.length === 0
+                  ? [{ name: 'empty', label: 'No active violations', type: 'paragraph' as const, defaultValue: 'Clean record.', disabled: true }]
+                  : activeViolations.slice(-3).map((v, i) => ({
+                      name: `violation_${i}`,
+                      label: `Violation #${i + 1} — ${new Date(v.timestamp).toLocaleDateString()}`,
+                      type: 'paragraph' as const,
+                      defaultValue: `Type: ${v.contentType} | Action: ${v.action}\nRule: ${v.rule || 'None'}\nMod: ${v.modName}`,
+                      disabled: true,
+                  }))),
+              { name: 'modNote', label: 'Mod Note', type: 'paragraph' as const, defaultValue: note || 'No note.', disabled: true },
           ],
         },
       },
