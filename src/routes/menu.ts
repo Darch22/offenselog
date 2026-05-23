@@ -114,23 +114,22 @@ menu.post('/dashboard', async (c) => {
   const subreddit = await reddit.getCurrentSubreddit();
   const topOffenders = await getTopOffenders(subreddit.id, 7, 10);
 
-  const text = topOffenders.length === 0
-      ? 'No violations recorded in the last 7 days.'
-      : topOffenders.map((u, i) => 
-      `#${i + 1} u/${u.userName} - ${u.count} violation${u.count !== 1 ? 's' : ''} (Tier ${u.tier})`).join('\n');
-
   return c.json<UiResponse>({
     showForm: {
       name: 'dashboard',
       form: {
         title: 'OffenseLog Dashboard',
         description: 'Top offenders - last 7 days',
-        fields: [{
-          name: 'report',
-          type: 'paragraph',
-          label: 'Top Offenders',
-          defaultValue: text
-        }],
+        fields: topOffenders.length === 0
+            ? [{ name: 'empty', label: 'No violations recorded', type: 'paragraph' as const, defaultValue: 'No violations in the last 7 days.', disabled: true }]
+            : topOffenders.map((u, i) => ({
+                name: `offender_${i}`,
+                label: `#${i + 1} — u/${u.userName}`,
+                type: 'paragraph' as const,
+                defaultValue: `${u.count} violation${u.count !== 1 ? 's' : ''} | Tier ${u.tier}`,
+                disabled: true,
+            })),
+        acceptLabel: 'Close',
       },
     },
   }, 200);
